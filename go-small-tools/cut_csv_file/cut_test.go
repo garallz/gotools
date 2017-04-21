@@ -42,7 +42,7 @@ func cutCsvFile() error {
 		f.WriteString("\xEF\xBB\xBF") // write UTF-8 BOM
 		w := csv.NewWriter(f)
 
-		if i != length {
+		if i != number {
 			w.WriteAll(fileArr[i*length : (i+1)*length])
 		} else {
 			w.WriteAll(fileArr[number*length:])
