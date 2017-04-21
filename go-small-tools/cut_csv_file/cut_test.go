@@ -31,7 +31,7 @@ func cutCsvFile() error {
 
 	number := len(file) / length
 
-	for i := 0; i <= length; i++ {
+	for i := 0; i <= number; i++ {
 		f, err := os.Create(fmt.Sprintf("file%d.csv", i+1))
 		if err != nil {
 			fmt.Println("Create file was wrong:", i, err)
