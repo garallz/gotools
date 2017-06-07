@@ -1,31 +1,25 @@
 package lifekey
 
 import (
-	"time"
-	"sync"
 	"sync/atomic"
+	"time"
 )
 
 /*
 	1.The package is use second as a lifecycle unit.
 	2.Key-data can null.
 	3.Key type is string.
- */
-type LifeData struct {
-	data map[string]*LifeKey
-	mc sync.RWMutex
-}
-
-func (d *LifeData)Set(key string,  life int64) {
+*/
+func (d *LifeData) Set(key string, life int64) {
 	d.mc.Lock()
 	d.data[key] = &LifeKey{
-		Start:time.Now().Unix(),
-		Life:life,
+		Start: time.Now().Unix(),
+		Life:  life,
 	}
 	d.mc.Unlock()
 }
 
-func (d *LifeData)Check(key string) bool {
+func (d *LifeData) Check(key string) bool {
 	d.mc.RLock()
 	defer d.mc.RUnlock()
 	if _, ok := d.data[key]; ok {
@@ -35,7 +29,7 @@ func (d *LifeData)Check(key string) bool {
 	}
 }
 
-func (d *LifeData)Get(key string) interface{} {
+func (d *LifeData) Get(key string) interface{} {
 	d.mc.RLock()
 	defer d.mc.RUnlock()
 	if data, ok := d.data[key]; ok {
@@ -45,24 +39,24 @@ func (d *LifeData)Get(key string) interface{} {
 	}
 }
 
-func (d *LifeData)SetAddData(data interface{}, key string,  life int64) {
+func (d *LifeData) SetAddData(data interface{}, key string, life int64) {
 	d.mc.Lock()
 	d.data[key] = &LifeKey{
-		Data:data,
-		Start:time.Now().Unix(),
-		Life:life,
+		Data:  data,
+		Start: time.Now().Unix(),
+		Life:  life,
 	}
 	d.mc.Unlock()
 }
 
-func (d *LifeData)Delete(key string) {
+func (d *LifeData) Delete(key string) {
 	d.mc.Lock()
 	delete(d.data, key)
 	d.mc.Unlock()
 }
 
 // If data not update, input nil.
-func (d *LifeData)UpdateData(data interface{}, key string) {
+func (d *LifeData) UpdateData(data interface{}, key string) {
 	d.mc.Lock()
 	d.data[key].Start = time.Now().Unix()
 	if data != nil {
@@ -71,9 +65,9 @@ func (d *LifeData)UpdateData(data interface{}, key string) {
 	d.mc.Unlock()
 }
 
-func (d *LifeData)GcData(life time.Duration) {
+func (d *LifeData) GcData(life time.Duration) {
 	d.data = make(map[string]*LifeKey)
-	go func () {
+	go func() {
 		var check int32 = 0
 		var key string
 		var data *LifeKey
@@ -83,13 +77,11 @@ func (d *LifeData)GcData(life time.Duration) {
 				cacheData := d.data
 				var timestamp = time.Now().Unix()
 				for key, data = range cacheData {
-					if data.Start + data.Life < timestamp {
+					if data.Start+data.Life < timestamp {
 						d.Delete(key)
 					}
 				}
 				atomic.AddInt32(&check, -1)
-			} else {
-				continue
 			}
 		}
 	}()
