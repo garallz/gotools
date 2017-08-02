@@ -9,9 +9,7 @@ import (
 )
 
 // check struct data and supplement.
-// open file and put in struct with *os.file
-// init cache
-func (l *LogStruct) open() {
+func (l *LogStruct) checkStruct() {
 	if l == nil {
 		l.Cache = true
 		l.CacheSize = 1024 * 1024
@@ -35,6 +33,9 @@ func (l *LogStruct) open() {
 		if l.Cache && l.CacheSize == 0 {
 			l.CacheSize = 1024 * 1024
 		}
+		if l.CacheSize != 0 && !l.Cache {
+			l.Cache = true
+		}
 		if l.FilePath != "" {
 			path := l.FilePath[len(l.FilePath)-1:]
 			if path != "/" || path != `\` {
@@ -46,11 +47,15 @@ func (l *LogStruct) open() {
 			}
 		}
 	}
+}
 
+// open file and put in struct with *os.file
+// init cache
+func (l *LogStruct) open() {
 	var err error
 	name := l.FilePath + l.FileName + "." + time.Now().Format(fmt.Sprint(l.FileTime))
 
-	l.file, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		panic("Open log file error: " + err.Error())
 	}
@@ -82,8 +87,8 @@ func (l *LogStruct) upFile() {
 		panic("Time parse error: " + err.Error())
 	} else {
 		l.stamp = stamp.UTC().Unix()
-		if sleep := stamp.Sub(time.Now().UTC()).Seconds(); sleep > 10 {
-			time.Sleep(time.Second * time.Duration(sleep-10))
+		if sleep := stamp.Sub(time.Now().UTC()).Seconds(); sleep > 5 {
+			time.Sleep(time.Second * time.Duration(sleep-5))
 		}
 		l.tc = true
 	}
@@ -136,7 +141,7 @@ func (l *LogStruct) check() error {
 
 		var name = l.FilePath + l.FileName + "." + time.Now().Format(fmt.Sprint(l.FileTime))
 		var err error
-		l.file, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+		l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			panic("Open new log file error: " + err.Error())
 		}
