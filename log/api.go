@@ -6,6 +6,11 @@ func (l *LogStruct) Init() {
 	l.checkStruct()
 	// Open file to write and init cache.
 	l.open()
+	// init cache data.
+	if l.Cache {
+		l.buf = l.buf[:0]
+	}
+	go l.upFile()
 }
 
 // Write log data with log level was Info.

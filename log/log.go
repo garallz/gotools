@@ -3,6 +3,7 @@ package llz_log
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -50,21 +51,19 @@ func (l *LogStruct) checkStruct() {
 }
 
 // open file and put in struct with *os.file
-// init cache
 func (l *LogStruct) open() {
 	var err error
 	name := l.FilePath + l.FileName + "." + time.Now().Format(fmt.Sprint(l.FileTime))
+
+	if l.Dir {
+		d := l.dir()
+		name = l.FilePath + d + l.FileName + "." + time.Now().Format(fmt.Sprint(l.FileTime))
+	}
 
 	l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		panic("Open log file error: " + err.Error())
 	}
-
-	if l.Cache {
-		l.buf = l.buf[:0]
-	}
-
-	go l.upFile()
 }
 
 // sleep time to make new file open.
@@ -139,17 +138,55 @@ func (l *LogStruct) check() error {
 		}
 		l.file.Close()
 
-		var name = l.FilePath + l.FileName + "." + time.Now().Format(fmt.Sprint(l.FileTime))
-		var err error
-		l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-		if err != nil {
-			panic("Open new log file error: " + err.Error())
-		}
-
+		l.open()
 		l.tc = false
 		l.mu.Unlock()
 
 		go l.upFile()
 	}
 	return nil
+}
+
+func (l *LogStruct) dir() string {
+	if _, err := os.Stat(l.FilePath + time.Now().Format("2006")); err != nil {
+		if os.IsNotExist(err) {
+			if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006")).Run() != nil {
+				panic("Create log file dir error!")
+			}
+		}
+	}
+	if l.FileTime != TimeMonth {
+		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01")); err != nil {
+			if os.IsNotExist(err) {
+				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01")).Run() != nil {
+					panic("Create log file dir error!")
+				}
+			}
+		}
+	} else {
+		return time.Now().Format("2006/")
+	}
+	if l.FileTime != TimeDay {
+		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01/02")); err != nil {
+			if os.IsNotExist(err) {
+				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01/02")).Run() != nil {
+					panic("Create log file dir error!")
+				}
+			}
+		}
+	} else {
+		return time.Now().Format("2006/01/")
+	}
+	if l.FileTime != TimeHour {
+		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01/02/15")); err != nil {
+			if os.IsNotExist(err) {
+				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01/02/15")).Run() != nil {
+					panic("Create log file dir error!")
+				}
+			}
+		}
+	} else {
+		return time.Now().Format("2006/01/02/")
+	}
+	return time.Now().Format("2006/01/02/15/")
 }

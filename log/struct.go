@@ -33,6 +33,8 @@ type LogStruct struct {
 	// how long about file create.
 	// when FileName was null, mean pre name eq TimeDay.
 	FileTime LogTime
+	// whether create dir to save log file.
+	Dir bool
 
 	buf   []byte
 	file  *os.File

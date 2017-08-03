@@ -26,6 +26,16 @@ func TestLogJustInit(t *testing.T) {
 	}
 }
 
+func TestDirCreate(t *testing.T) {
+	l := LogStruct{
+		FileTime: TimeHour,
+		Dir:      true,
+	}
+	l.Init()
+
+	l.WriteError("message")
+}
+
 func TestFileCreate(t *testing.T) {
 	l := LogStruct{
 		FileName:   "log.data",
