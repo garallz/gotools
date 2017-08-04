@@ -147,46 +147,39 @@ func (l *LogStruct) check() error {
 	return nil
 }
 
+// make dir about FileTime.
 func (l *LogStruct) dir() string {
-	if _, err := os.Stat(l.FilePath + time.Now().Format("2006")); err != nil {
-		if os.IsNotExist(err) {
-			if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006")).Run() != nil {
-				panic("Create log file dir error!")
-			}
-		}
-	}
+	// Create log file dir with year.
+	l.create(time.Now().Format("2006"))
+
+	// Create log file dir with month.
 	if l.FileTime != TimeMonth {
-		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01")); err != nil {
-			if os.IsNotExist(err) {
-				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01")).Run() != nil {
-					panic("Create log file dir error!")
-				}
-			}
-		}
+		l.create(time.Now().Format("2006/01"))
 	} else {
 		return time.Now().Format("2006/")
 	}
+	// Create log file dir with day.
 	if l.FileTime != TimeDay {
-		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01/02")); err != nil {
-			if os.IsNotExist(err) {
-				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01/02")).Run() != nil {
-					panic("Create log file dir error!")
-				}
-			}
-		}
+		l.create(time.Now().Format("2006/01/02"))
 	} else {
 		return time.Now().Format("2006/01/")
 	}
+	// Create log file dir with hour.
 	if l.FileTime != TimeHour {
-		if _, err := os.Stat(l.FilePath + time.Now().Format("2006/01/02/15")); err != nil {
-			if os.IsNotExist(err) {
-				if exec.Command("sh", "-c", "mkdir "+time.Now().Format("2006/01/02/15")).Run() != nil {
-					panic("Create log file dir error!")
-				}
-			}
-		}
+		l.create(time.Now().Format("2006/01/02/15"))
 	} else {
 		return time.Now().Format("2006/01/02/")
 	}
 	return time.Now().Format("2006/01/02/15/")
+}
+
+// check dir exist and create.
+func (l *LogStruct) create(path string) {
+	if _, err := os.Stat(l.FilePath + path); err != nil {
+		if os.IsNotExist(err) {
+			if exec.Command("sh", "-c", "mkdir "+l.FilePath+path).Run() != nil {
+				panic("Create log file dir error!")
+			}
+		}
+	}
 }

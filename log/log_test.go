@@ -29,6 +29,7 @@ func TestLogJustInit(t *testing.T) {
 func TestDirCreate(t *testing.T) {
 	l := LogStruct{
 		FileTime: TimeHour,
+		FilePath: "data",
 		Dir:      true,
 	}
 	l.Init()
