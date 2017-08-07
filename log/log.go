@@ -93,7 +93,7 @@ func (l *LogStruct) upFile() {
 	}
 }
 
-// put log data in cache or file.
+// put log data and level in buffer.
 func (l *LogStruct) put(level string, msg ...interface{}) error {
 	d := make([]string, len(msg)+1)
 	d[0] = time.Now().Format(l.TimeFormat) + level
@@ -103,8 +103,12 @@ func (l *LogStruct) put(level string, msg ...interface{}) error {
 
 	f := []byte(strings.Join(d, " ") + "\n")
 
-	var err error
+	return l.putByte(f)
+}
 
+// put byte in cache or file.
+func (l *LogStruct) putByte(bts []byte) error {
+	var err error
 	if l.tc {
 		if err = l.check(); err != nil {
 			return err
@@ -115,13 +119,13 @@ func (l *LogStruct) put(level string, msg ...interface{}) error {
 	defer l.mu.Unlock()
 
 	if l.Cache {
-		l.buf = append(l.buf, f...)
+		l.buf = append(l.buf, bts...)
 		if len(l.buf) >= l.CacheSize {
 			_, err = l.file.Write(l.buf)
 			l.buf = l.buf[:0]
 		}
 	} else {
-		_, err = l.file.Write(f)
+		_, err = l.file.Write(bts)
 	}
 	return err
 }

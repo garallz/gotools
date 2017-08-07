@@ -52,3 +52,8 @@ func (l *LogStruct) WriteFatal(err error, messages ...interface{}) {
 		panic(err)
 	}
 }
+
+// Write byte log data.
+func (l *LogStruct) WriteByte(bts []byte) error {
+	return l.putByte(append(bts, []byte("\n")...))
+}

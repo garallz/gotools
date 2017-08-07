@@ -1,6 +1,7 @@
 package llz_log
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -108,5 +109,23 @@ func TestCacheWrite(t *testing.T) {
 	for i := 0; i <= 20; i++ {
 		l.WriteError(str[2])
 		time.Sleep(time.Millisecond * 500)
+	}
+}
+
+func TestByteWrite(t *testing.T) {
+	var b = struct {
+		Time time.Time
+		Data string
+	}{Time: time.Now(), Data: "Test Data."}
+
+	l := LogStruct{}
+	l.Init()
+
+	if s, err := json.Marshal(b); err != nil {
+		t.Error(err)
+	} else {
+		l.WriteByte(s)
+		// Check \n
+		l.WriteByte(s)
 	}
 }

@@ -5,6 +5,8 @@
     data := llz_log.LogStruct{}  // Initialized structure and assignment.
     data.Init()                  // Initialized func.
     data.WriteError("message")   // Write log data with level.
+    
+    data.WriteByte()             // Write event log. no level and pre data. just byte data.
 ```
 
 ## Struct Definition
@@ -44,6 +46,8 @@ type LogStruct struct {
     data := llz_log.LogStruct{}  // 结构体初始化并定义赋值
     data.Init()                  // 程序初始化
     data.WriteError("message")   // 级别日志记录
+    
+    data.WriteByte()             // 记录相关事件日志，自动换行，没有日志等级和前缀。
 ```
 
 ## 结构定义
