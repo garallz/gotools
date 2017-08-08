@@ -10,6 +10,21 @@ type (
 	LogTime  string
 )
 
+const (
+	LevelInfo  LogLevel = 1
+	LevelDebug LogLevel = 2
+	LevelWarn  LogLevel = 3
+	LevelError LogLevel = 4
+	LevelFatal LogLevel = 5
+)
+
+const (
+	TimeMonth  LogTime = "200601"
+	TimeDay    LogTime = "20060102"
+	TimeHour   LogTime = "2006010215"
+	TimeMinute LogTime = "200601021504"
+)
+
 // It can be null.
 type LogStruct struct {
 	// if true, mean log data first put in cache, than cache full put in file.
@@ -35,25 +50,20 @@ type LogStruct struct {
 	FileTime LogTime
 	// whether create dir to save log file.
 	Dir bool
-
-	buf   []byte
-	file  *os.File
-	stamp int64
-	tc    bool
-	mu    sync.Mutex
 }
 
-const (
-	LevelInfo  LogLevel = 1
-	LevelDebug LogLevel = 2
-	LevelWarn  LogLevel = 3
-	LevelError LogLevel = 4
-	LevelFatal LogLevel = 5
-)
-
-const (
-	TimeMonth  LogTime = "200601"
-	TimeDay    LogTime = "20060102"
-	TimeHour   LogTime = "2006010215"
-	TimeMinute LogTime = "200601021504"
-)
+type LogData struct {
+	cache  bool
+	size   int
+	format string
+	name   string
+	path   string
+	level  LogLevel
+	time   LogTime
+	dir    bool
+	buf    []byte
+	file   *os.File
+	stamp  int64
+	tc     bool
+	mu     sync.Mutex
+}

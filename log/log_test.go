@@ -7,19 +7,10 @@ import (
 	"time"
 )
 
-func TestLogNotInit(t *testing.T) {
-	var l = LogStruct{}
-	err := l.WriteError("message")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestLogJustInit(t *testing.T) {
-	var l = LogStruct{
+func TestLogJustLogInit(t *testing.T) {
+	l := LogInit(&LogStruct{
 		Cache: false,
-	}
-	l.Init()
+	})
 
 	err := l.WriteError("message")
 	if err != nil {
@@ -28,23 +19,21 @@ func TestLogJustInit(t *testing.T) {
 }
 
 func TestDirCreate(t *testing.T) {
-	l := LogStruct{
+	l := LogInit(&LogStruct{
 		FileTime: TimeHour,
 		FilePath: "data",
 		Dir:      true,
-	}
-	l.Init()
+	})
 
 	l.WriteError("message")
 }
 
 func TestFileCreate(t *testing.T) {
-	l := LogStruct{
+	l := LogInit(&LogStruct{
 		FileName:   "log.data",
 		TimeFormat: "15:04:05",
 		FileTime:   TimeMinute,
-	}
-	l.Init()
+	})
 
 	for i := 0; i <= 65; i++ {
 		l.WriteError(i)
@@ -53,10 +42,9 @@ func TestFileCreate(t *testing.T) {
 }
 
 func TestLogLevel(t *testing.T) {
-	var l = LogStruct{
+	l := LogInit(&LogStruct{
 		Level: LevelWarn,
-	}
-	l.Init()
+	})
 
 	err := l.WriteInfo("message")
 	if err != nil {
@@ -86,11 +74,10 @@ func TestCacheWrite(t *testing.T) {
 		"Listen, my heart, to the whispers of the world with which it makes love to you.",
 	}
 
-	var l = LogStruct{
+	l := LogInit(&LogStruct{
 		TimeFormat: "15:04:05",
 		CacheSize:  1024,
-	}
-	l.Init()
+	})
 
 	for _, s := range str {
 		fmt.Println(1024/len([]byte(s)) + 1)
@@ -118,8 +105,7 @@ func TestByteWrite(t *testing.T) {
 		Data string
 	}{Time: time.Now(), Data: "Test Data."}
 
-	l := LogStruct{}
-	l.Init()
+	l := LogInit(&LogStruct{})
 
 	if s, err := json.Marshal(b); err != nil {
 		t.Error(err)

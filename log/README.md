@@ -2,8 +2,7 @@
 
 ## Use Way
 ```
-    data := llz_log.LogStruct{}  // Initialized structure and assignment.
-    data.Init()                  // Initialized func.
+    data := LogInit(&LogStruct{})  // Initialized structure and assignment.
     data.WriteError("message")   // Write log data with level.
     
     data.WriteByte()             // Write event log. no level and pre data. just byte data.
@@ -39,15 +38,29 @@ type LogStruct struct {
 }
 ```
 
+## All right global use way:
+```go
+   // create global values.
+   var l LogData
+   // initialized global values.
+   func init() {
+        l = LogInit(&LogStruct{})
+   }
+   // write log data in file.
+   func logWrite() {
+        l.WriteError("message")
+   }
+```
+
+
 # 日志 （Chinese）
 
 ## 使用方法
 ```
-    data := llz_log.LogStruct{}  // 结构体初始化并定义赋值
-    data.Init()                  // 程序初始化
-    data.WriteError("message")   // 级别日志记录
+    data := LogInit(&LogStruct{})   // 程序初始化
+    data.WriteError("message")      // 级别日志记录
     
-    data.WriteByte()             // 记录相关事件日志，自动换行，没有日志等级和前缀。
+    data.WriteByte()                // 记录相关事件日志，自动换行，没有日志等级和前缀。
 ```
 
 ## 结构定义

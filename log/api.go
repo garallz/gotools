@@ -1,59 +1,58 @@
 package llz_log
 
 // Initialization Func.
-func (l *LogStruct) Init() {
+func LogInit(l *LogStruct) *LogData {
 	// Check struct data.
-	l.checkStruct()
+	d := l.checkStruct()
 	// Open file to write and init cache.
-	l.open()
-	// init cache data.
-	if l.Cache {
-		l.buf = l.buf[:0]
-	}
-	go l.upFile()
+	d.open()
+	// sleep time to make new file open.
+	go d.upFile()
+
+	return d
 }
 
 // Write log data with log level was Info.
-func (l *LogStruct) WriteInfo(messages ...interface{}) error {
-	if l.Level == LevelInfo {
+func (l *LogData) WriteInfo(messages ...interface{}) error {
+	if l.level == LevelInfo {
 		return l.put(" INFO  ", messages)
 	}
 	return nil
 }
 
 // Write log data with log level was Debug.
-func (l *LogStruct) WriteDebug(messages ...interface{}) error {
-	if l.Level <= LevelDebug {
+func (l *LogData) WriteDebug(messages ...interface{}) error {
+	if l.level <= LevelDebug {
 		return l.put(" DEBUG ", messages)
 	}
 	return nil
 }
 
 // Write log data with log level was Warn.
-func (l *LogStruct) WriteWarn(messages ...interface{}) error {
-	if l.Level <= LevelWarn {
+func (l *LogData) WriteWarn(messages ...interface{}) error {
+	if l.level <= LevelWarn {
 		return l.put(" WARN  ", messages)
 	}
 	return nil
 }
 
 // Write log data with log level was Error.
-func (l *LogStruct) WriteError(messages ...interface{}) error {
-	if l.Level <= LevelError {
+func (l *LogData) WriteError(messages ...interface{}) error {
+	if l.level <= LevelError {
 		return l.put(" ERROR ", messages)
 	}
 	return nil
 }
 
 // Write log data with log level was Fatal.
-func (l *LogStruct) WriteFatal(err error, messages ...interface{}) {
-	if l.Level <= LevelFatal {
+func (l *LogData) WriteFatal(err error, messages ...interface{}) {
+	if l.level <= LevelFatal {
 		l.put(" FATAL ", messages)
 		panic(err)
 	}
 }
 
 // Write byte log data.
-func (l *LogStruct) WriteByte(bts []byte) error {
+func (l *LogData) WriteByte(bts []byte) error {
 	return l.putByte(append(bts, []byte("\n")...))
 }
