@@ -109,7 +109,7 @@ func (l *LogData) put(level string, msg ...interface{}) error {
 	d := make([]string, len(msg)+1)
 	d[0] = time.Now().Format(l.format) + level
 	for i, r := range msg {
-		d[i+1] = fmt.Sprint(r)
+		d[i+1] = fmt.Sprintf("%v", r)
 	}
 
 	f := []byte(strings.Join(d, " ") + "\n")
