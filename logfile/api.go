@@ -1,4 +1,4 @@
-package llz_log
+package logfile
 
 // Initialization Func.
 func LogInit(l *LogStruct) *LogData {

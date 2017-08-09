@@ -1,4 +1,4 @@
-package llz_log
+package logfile
 
 import (
 	"fmt"
@@ -120,6 +120,7 @@ func (l *LogData) put(level string, msg ...interface{}) error {
 // put byte in cache or file.
 func (l *LogData) putByte(bts []byte) error {
 	var err error
+	// check new file create time status.
 	if l.tc {
 		if err = l.check(); err != nil {
 			return err

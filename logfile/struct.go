@@ -1,4 +1,4 @@
-package llz_log
+package logfile
 
 import (
 	"os"
