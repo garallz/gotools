@@ -10,23 +10,22 @@ import (
 )
 
 type SqlFunc struct {
-	Package string
-	Data    []*SqlData
+	Package string     `json:"package`
+	Data    []*SqlData `json:"data`
 }
 
 type SqlData struct {
-	Table   string
-	upTable string
-	Index   string
-	Message string
-	Model   []int
-	Fields  []FieldsData
+	Table   string       `json:"table`
+	upTable string       `json:"-`
+	Index   string       `json:"index`
+	Message string       `json:"message`
+	Model   []int        `json:"model`
+	Fields  []FieldsData `json:"fields`
 }
 
 type FieldsData struct {
-	Name   string
-	upName string
-	Type   string
+	Name string `json:"name`
+	Type string `json:"type`
 }
 
 func MakeSqlFunction(fileName string) {
@@ -44,23 +43,14 @@ func MakeSqlFunction(fileName string) {
 	makeConstFile(data)
 
 	for _, row := range data.Data {
-		out, err := os.OpenFile(row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+		out, err := os.OpenFile(row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			panic(err)
 		}
 
-		var values string
+		out.WriteString(fmt.Sprintf("//%s\npackage %s\n\n", row.Message, data.Package))
+		out.WriteString(dealWithTable(row))
 
-		row.upTable = CamelCaseString(row.Table)
-		for i, _ := range row.Fields {
-			row.Fields[i].upName = CamelCaseString(row.Fields[i].Name)
-			values += row.Fields[i].upName + "\t" + row.Fields[i].Type + "\n"
-		}
-		str := fmt.Sprintf(head, row.Message, data.Package, row.upTable, values)
-
-		str += checkModel(row)
-
-		out.WriteString(str)
 		out.Close()
 	}
 
@@ -68,7 +58,7 @@ func MakeSqlFunction(fileName string) {
 }
 
 func makeConstFile(data *SqlFunc) {
-	out, err := os.OpenFile("sql_const.go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	out, err := os.OpenFile("sql_const.go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)
 	}
@@ -78,26 +68,40 @@ func makeConstFile(data *SqlFunc) {
 	out.Close()
 }
 
-func checkModel(row *SqlData) string {
-	var queryString, scanString string
-	for _, row := range row.Fields {
-		queryString += "`" + row.Name + "`, "
-		scanString += "\n&data." + row.upName + ", "
+func dealWithTable(row *SqlData) string {
+	row.upTable = CamelCaseString(row.Table)
+	var queryString, scanString, timeBool, values string = "", "", "", ""
+	for _, field := range row.Fields {
+		if field.Type == "time.Time" {
+			timeBool = "\"time\"\n"
+		}
+		upName := CamelCaseString(field.Name)
+		values += upName + "\t" + field.Type + "\n"
+		queryString += "`" + field.Name + "`, "
+		scanString += "\n&data." + upName + ", "
 	}
 	queryString = queryString[:len(queryString)-2]
 	scanString = scanString + "\n"
 
-	var str = setConst(row, queryString)
+	var str = fmt.Sprintf(head, timeBool, row.upTable, values)
+	str += setConst(row, queryString)
+	str += checkModel(row, scanString)
+	return str
+}
 
+func checkModel(row *SqlData, scanString string) string {
+	var str string
 	if len(row.Model) == 0 {
+		if row.Index != "" {
+			str += queryRowData(row, scanString) + "\n"
+			str += deleteIndexData(row) + "\n"
+			str += updateRowData(row) + "\n"
+		}
 		str += insertRowData(row) + "\n"
 		str += insertArrData(row) + "\n"
-		str += queryRowData(row, scanString) + "\n"
 		str += queryAllData(row, scanString) + "\n"
 		str += queryWhereData(row, scanString) + "\n"
-		str += deleteDataById(row) + "\n"
 		str += deleteWhereData(row) + "\n"
-		str += updateRowData(row) + "\n"
 	} else {
 		for _, num := range DeleteSameInt(row.Model) {
 			switch num {
@@ -110,7 +114,7 @@ func checkModel(row *SqlData) string {
 			case 3:
 				str += queryWhereData(row, scanString) + "\n"
 			case 4:
-				str += deleteDataById(row) + "\n"
+				str += deleteIndexData(row) + "\n"
 			case 5:
 				str += deleteWhereData(row) + "\n"
 			case 6:
@@ -126,20 +130,22 @@ func checkModel(row *SqlData) string {
 func setConst(data *SqlData, queryString string) string {
 	var num = strings.Repeat("?, ", len(data.Fields))
 	var str, updateString string
-	for _, row := range data.Fields {
-		if row.Name == data.Index {
-			continue
-		}
-		updateString += "`" + row.Name + "` = ?, "
-	}
 
+	if data.Index != "" {
+		for _, row := range data.Fields {
+			if row.Name == data.Index {
+				continue
+			}
+			updateString += "`" + row.Name + "` = ?, "
+		}
+		str += fmt.Sprintf(constDeleteIndex, data.upTable, data.Table, data.Index)
+		str += fmt.Sprintf(constUpdateIndex, data.upTable, data.Table, updateString[:len(updateString)-2], data.Index)
+		str += fmt.Sprintf(constSelectIndex, data.upTable, queryString, data.Table, data.Index)
+	}
 	str += fmt.Sprintf(constInsert, data.upTable, data.Table, queryString, num[:len(num)-2])
-	str += fmt.Sprintf(constDeleteIndex, data.upTable, data.Table, data.Index)
 	str += fmt.Sprintf(constDeleteWhere, data.upTable, data.Table)
-	str += fmt.Sprintf(constUpdateIndex, data.upTable, data.Table, updateString[:len(updateString)-2], data.Index)
 	str += fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2])
 	str += fmt.Sprintf(constSelectAll, data.upTable, queryString, data.Table)
-	str += fmt.Sprintf(constSelectIndex, data.upTable, queryString, data.Table, data.Index)
 	str += fmt.Sprintf(constSelectWhere, data.upTable, queryString, data.Table)
 	return str
 }

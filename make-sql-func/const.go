@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-const head string = "//%s\npackage %s\n\nimport (\n\"database/sql\"\n)\n\ntype %sTable struct{\n%s\n}\n\n"
+const head string = "import (\n\"database/sql\"\n%s)\n\ntype %sTable struct{\n%s\n}\n\n"
 
 const (
 	constInsert      string = "const insert%s = \"INSERT INTO `%s` (%s) VALUES (%s)\"\n"
@@ -51,7 +51,7 @@ func Insert%sArray(db *sql.DB, data []*%sTable) error {
 
 	// 1&2&3: UpTable
 	// 4: scan string
-	queryRowFunc string = `
+	queryIndexFunc string = `
 // Query one row by index
 func Query%sByIndex(db *sql.DB, index interface{}) (data *%sTable, err error) {
 	err = db.QueryRow(select%sIndex, index).Scan(%s)
@@ -107,7 +107,7 @@ func Query%sWhere(db *sql.DB, where string, query ...interface{}) (data []*%sTab
 }`
 
 	// 1&2: UpTable
-	deleteRowFunc string = `
+	deleteIndexFunc string = `
 // Delete one row data by index.
 func Delete%sByIndex(db *sql.DB, index interface{}) error {
 	_, err := db.Exec(delete%sIndex, index)
@@ -123,7 +123,7 @@ func Delete%sWhere(db *sql.DB, where string, query ...interface{}) error {
 }`
 
 	// 1: UpTable
-	updateRowFunc string = `
+	updateIndexFunc string = `
 // Update one row by index.
 func UpdateRow%s(db *sql.DB, index, %s interface{}) error {
 	_, err := db.Exec(update%sIndex, index, %s)

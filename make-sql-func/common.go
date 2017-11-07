@@ -1,9 +1,15 @@
 package sqlFunc
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // Convert string to Camel-Case name.
 func CamelCaseString(field string) string {
+	if field == "" {
+		return ""
+	}
 	var num = 0
 	var result = make([]byte, 0)
 	for i, r := range []byte(field) {
@@ -19,6 +25,14 @@ func CamelCaseString(field string) string {
 		}
 	}
 	return string(result)
+}
+
+func SmallCamelCaseString(field string) string {
+	if field == "" {
+		return ""
+	}
+	var result = CamelCaseString(field)
+	return strings.ToLower(result[:1]) + result[1:]
 }
 
 // Delete same int data with array.

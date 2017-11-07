@@ -8,7 +8,7 @@ import (
 func insertRowData(data *SqlData) string {
 	var values []string
 	for _, field := range data.Fields {
-		values = append(values, strings.ToLower(field.upName[:1])+field.upName[1:])
+		values = append(values, SmallCamelCaseString(field.Name))
 	}
 	return fmt.Sprintf(insertRowFunc, data.upTable, strings.Join(values, ", "), data.upTable, strings.Join(values, ", "))
 }
@@ -16,13 +16,13 @@ func insertRowData(data *SqlData) string {
 func insertArrData(data *SqlData) string {
 	var values []string
 	for _, field := range data.Fields {
-		values = append(values, "row."+field.upName)
+		values = append(values, "row."+CamelCaseString(field.Name))
 	}
 	return fmt.Sprintf(insertArrFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ", "))
 }
 
 func queryRowData(data *SqlData, scanString string) string {
-	return fmt.Sprintf(queryRowFunc, data.upTable, data.upTable, data.upTable, scanString)
+	return fmt.Sprintf(queryIndexFunc, data.upTable, data.upTable, data.upTable, scanString)
 }
 
 func queryAllData(data *SqlData, scanString string) string {
@@ -33,8 +33,8 @@ func queryWhereData(data *SqlData, scanString string) string {
 	return fmt.Sprintf(queryAllWhereFunc, data.upTable, data.upTable, data.upTable, data.upTable, data.upTable, scanString)
 }
 
-func deleteDataById(data *SqlData) string {
-	return fmt.Sprintf(deleteRowFunc, data.upTable, data.upTable)
+func deleteIndexData(data *SqlData) string {
+	return fmt.Sprintf(deleteIndexFunc, data.upTable, data.upTable)
 }
 
 func deleteWhereData(data *SqlData) string {
@@ -47,9 +47,9 @@ func updateRowData(data *SqlData) string {
 		if field.Name == data.Index {
 			continue
 		}
-		values = append(values, strings.ToLower(field.upName[:1])+field.upName[1:])
+		values = append(values, SmallCamelCaseString(field.Name))
 	}
-	return fmt.Sprintf(updateRowFunc, data.upTable, strings.Join(values, ", "), data.upTable, strings.Join(values, ", "))
+	return fmt.Sprintf(updateIndexFunc, data.upTable, strings.Join(values, ", "), data.upTable, strings.Join(values, ", "))
 }
 
 func DuplicateData(data *SqlData) string {

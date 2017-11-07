@@ -5,7 +5,7 @@
   "package": "sqlFunc",
   "data":[
     {
-      "table":"node",
+      "table":"test",
       "fields":[
         {
           "name": "xid",
@@ -14,7 +14,7 @@
       ],
       "index":"xid",
       "model": [1, 2, 3], 
-      "message":"测试测试"
+      "message":"Testing"
     }
   ]
 }
