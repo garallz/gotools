@@ -27,6 +27,7 @@ func CamelCaseString(field string) string {
 	return string(result)
 }
 
+// Convert string to small Camel-Case name.
 func SmallCamelCaseString(field string) string {
 	if field == "" {
 		return ""

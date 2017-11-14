@@ -6,7 +6,7 @@ import (
 )
 
 func TestMakeSqlFunction(t *testing.T) {
-	err := exec.Command("sh", "-c", "rm node.go sql_const.go").Run()
+	err := exec.Command("sh", "-c", "rm sql_const.go test.go").Run()
 	if err != nil {
 		t.Error(err)
 	}

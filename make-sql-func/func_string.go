@@ -53,5 +53,10 @@ func updateRowData(data *SqlData) string {
 }
 
 func DuplicateData(data *SqlData) string {
-	return ""
+	var values []string
+	for _, field := range data.Fields {
+		values = append(values, "data."+CamelCaseString(field.Name))
+	}
+	//var str = fmt.Sprintf(duplicateFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ",")) + "\n"
+	return fmt.Sprintf(duplicateWhereFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ","))
 }
