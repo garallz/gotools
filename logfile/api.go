@@ -52,7 +52,12 @@ func (l *LogData) WriteFatal(err error, messages ...interface{}) {
 	}
 }
 
-// Write byte log data.
+// Write byte log data, not prefix.
 func (l *LogData) WriteByte(bts []byte) error {
 	return l.putByte(append(bts, []byte("\n")...))
+}
+
+// Change log error level.
+func (l *LogData) ChangeErrLevel(level LogLevel) {
+	l.level = level
 }
