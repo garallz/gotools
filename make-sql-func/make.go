@@ -21,7 +21,7 @@ type SqlData struct {
 	// sql table name
 	Table string `json:"table`
 
-	// table big-camel-case name
+	// table convert to big-camel-case name
 	upTable string `json:"-`
 
 	// table index
@@ -34,7 +34,7 @@ type SqlData struct {
 	Unique []string `json:"unique"`
 
 	// mysql duplicate update fields
-	Duplicate []string `json:"duplicate"`
+	//Duplicate []string `json:"duplicate"`
 
 	// table explanation message
 	Message string `json:"message`
@@ -47,6 +47,8 @@ type SqlData struct {
 	Fields []struct {
 		// table field name
 		Name string `json:"name`
+		// field convert to big-camel-case name
+		upName string `json:"-"`
 		// table field type
 		// eg: int, int32, int64, fload64, string, time.Time, bool...
 		Type string `json:"type`
@@ -72,6 +74,10 @@ func MakeSqlFunction(fileName string) {
 		newFile, err := os.OpenFile(row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			panic(err)
+		}
+
+		for i, field := range row.Fields {
+			row.Fields[i].upName = CamelCaseString(field.Name)
 		}
 
 		newFile.WriteString(fmt.Sprintf("//%s\npackage %s\n\n", row.Message, data.Package))
@@ -106,85 +112,105 @@ func dealWithTable(row *SqlData) string {
 		if field.Type == "time.Time" {
 			timeBool = "\"time\"\n"
 		}
-		upName := CamelCaseString(field.Name)
-		values += upName + "\t" + field.Type + "\n"
+		values += field.upName + "\t" + field.Type + "\n"
 		queryString += "`" + field.Name + "`, "
-		scanString += "\n&data." + upName + ", "
+		scanString += "\n&data." + field.upName + ", "
 	}
 
 	var str = fmt.Sprintf(head, timeBool, row.upTable, values)
 
 	if len(row.Model) == 0 {
-		row.Model = []int{1, 2, 3, 4}
+		row.Model = []int{1, 2, 3, 4, 5}
 	}
 	return str + checkModelArray(row, queryString[:len(queryString)-2], scanString+"\n")
 }
 
 func checkModelArray(data *SqlData, queryString, scanString string) string {
 	var num = strings.Repeat("?, ", len(data.Fields))
-	var constString, funcString string
+	var constString, funcString []string
 
 	for _, model := range DeleteSameInt(data.Model) {
 		switch model {
 
 		case 1: // Insert
-			constString += fmt.Sprintf(constInsert, data.upTable, data.Table, queryString, num[:len(num)-2])
-			funcString += insertRowData(data) + "\n"
-			funcString += insertArrData(data) + "\n"
+			constString = append(constString, fmt.Sprintf(constInsert, data.upTable, data.Table, queryString, num[:len(num)-2]))
+			funcString = append(funcString, insertRowData(data))
+			funcString = append(funcString, insertArrData(data))
 
 		case 2: // Delete
 			if data.Index != "" {
-				constString += fmt.Sprintf(constDeleteIndex, data.upTable, data.Table, data.Index)
-				funcString += deleteIndexData(data) + "\n"
+				constString = append(constString, fmt.Sprintf(constDeleteIndex, data.upTable, data.Table, data.Index))
+				funcString = append(funcString, deleteIndexData(data))
+				funcString = append(funcString, deleteArrayIndexData(data))
 			}
-			constString += fmt.Sprintf(constDeleteWhere, data.upTable, data.Table)
-			funcString += deleteWhereData(data) + "\n"
+			constString = append(constString, fmt.Sprintf(constDeleteWhere, data.upTable, data.Table))
+			funcString = append(funcString, deleteWhereData(data))
 
 		case 3: // Update
 			// When update the table, ignore index update.
 			if data.Index != "" {
-				var updateString []string
+				var updateSet []string
 				for _, row := range data.Fields {
 					if row.Name == data.Index {
 						continue
 					}
-					updateString = append(updateString, "`"+row.Name+"` = ?")
+					updateSet = append(updateSet, "`"+row.Name+"` = ?")
 				}
-				constString += fmt.Sprintf(constUpdateIndex, data.upTable, data.Table, strings.Join(updateString, ", "), data.Index)
-				funcString += updateRowData(data) + "\n"
+				constString = append(constString, fmt.Sprintf(constUpdateIndex, data.upTable, data.Table, strings.Join(updateSet, ", "), data.Index))
+				funcString = append(funcString, updateRowData(data))
 			}
 			// When update the table, ignore unique update.
 			if len(data.Unique) != 0 {
-				var updateString []string
+				var setQuery, whereQuery, setData, whereData []string
+			UpdateGo:
 				for _, row := range data.Fields {
 					for _, x := range data.Unique {
 						if row.Name == x {
-							continue
+							whereQuery = append(whereQuery, "`"+row.Name+"` = ?")
+							whereData = append(whereData, "row."+row.upName)
+							continue UpdateGo
 						}
 					}
-					updateString = append(updateString, "`"+row.Name+"` = ?")
+					setQuery = append(setQuery, "`"+row.Name+"` = ?")
+					setData = append(setData, "row."+row.upName)
 				}
-				constString += fmt.Sprintf(constUpdateUnique, data.upTable, data.Table, strings.Join(updateString, ", "), data.Index)
-				funcString += updateRowData(data) + "\n"
+				constString = append(constString, fmt.Sprintf(constUpdateUnique, data.upTable, data.Table, strings.Join(setQuery, ", "), strings.Join(whereQuery, ", ")))
+				funcString = append(funcString, updateUniqueArrayData(data, strings.Join(append(setData, whereData...), ",\n")))
 			}
 
 		case 4: //Select
 			if data.Index != "" {
-				constString += fmt.Sprintf(constSelectIndex, data.upTable, queryString, data.Table, data.Index)
-				funcString += queryRowData(data, scanString) + "\n"
+				constString = append(constString, fmt.Sprintf(constSelectIndex, data.upTable, queryString, data.Table, data.Index))
+				funcString = append(funcString, queryRowData(data, scanString))
 			}
-			constString += fmt.Sprintf(constSelectAll, data.upTable, queryString, data.Table)
-			constString += fmt.Sprintf(constSelectWhere, data.upTable, queryString, data.Table)
-			funcString += queryAllData(data, scanString) + "\n"
-			funcString += queryWhereData(data, scanString) + "\n"
+			constString = append(constString, fmt.Sprintf(constSelectAll, data.upTable, queryString, data.Table))
+			constString = append(constString, fmt.Sprintf(constSelectWhere, data.upTable, queryString, data.Table))
+			funcString = append(funcString, queryAllData(data, scanString))
+			funcString = append(funcString, queryWhereData(data, scanString))
 
 		case 5: // Duplicate
-			constString += fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2])
-			funcString += DuplicateData(data) + "\n"
+			if len(data.Unique) != 0 {
+				var setQuery, setData, execData []string
+			DuplicateGo:
+				for _, row := range data.Fields {
+					execData = append(execData, "row."+row.upName)
+					for _, x := range data.Unique {
+						if row.Name == x || row.Name == data.Index {
+							continue DuplicateGo
+						}
+					}
+					setQuery = append(setQuery, "`"+row.Name+"` = ?")
+					setData = append(setData, "row."+row.upName)
+				}
+				constString = append(constString, fmt.Sprintf(constDupliUnique, data.upTable, data.Table, queryString, num[:len(num)-2], strings.Join(setQuery, ", ")))
+				funcString = append(funcString, DuplicateUniqueData(data, strings.Join(append(execData, setData...), ",\n")))
+			}
+			//constString = append(constString, fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2]))
+			//funcString = append(funcString, DuplicateData(data))
 		default:
 			continue
 		}
 	}
 
-	return constString + funcString
+	return strings.Join(append(constString, funcString...), "\n")
 }

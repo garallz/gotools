@@ -16,9 +16,9 @@ func insertRowData(data *SqlData) string {
 func insertArrData(data *SqlData) string {
 	var values []string
 	for _, field := range data.Fields {
-		values = append(values, "row."+CamelCaseString(field.Name))
+		values = append(values, "row."+field.upName)
 	}
-	return fmt.Sprintf(insertArrFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ", "))
+	return fmt.Sprintf(insertArrFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ",\n"))
 }
 
 func queryRowData(data *SqlData, scanString string) string {
@@ -37,6 +37,10 @@ func deleteIndexData(data *SqlData) string {
 	return fmt.Sprintf(deleteIndexFunc, data.upTable, data.upTable)
 }
 
+func deleteArrayIndexData(data *SqlData) string {
+	return fmt.Sprintf(deleteArrayIndexFunc, data.upTable, data.upTable)
+}
+
 func deleteWhereData(data *SqlData) string {
 	return fmt.Sprintf(deleteWhereFunc, data.upTable, data.upTable)
 }
@@ -52,11 +56,18 @@ func updateRowData(data *SqlData) string {
 	return fmt.Sprintf(updateIndexFunc, data.upTable, strings.Join(values, ", "), data.upTable, strings.Join(values, ", "))
 }
 
+func updateUniqueArrayData(data *SqlData, execData string) string {
+	return fmt.Sprintf(updateUniqueFunc, data.upTable, data.upTable, data.upTable, execData)
+}
+
 func DuplicateData(data *SqlData) string {
 	var values []string
 	for _, field := range data.Fields {
-		values = append(values, "data."+CamelCaseString(field.Name))
+		values = append(values, "data."+field.upName)
 	}
-	//var str = fmt.Sprintf(duplicateFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ",")) + "\n"
 	return fmt.Sprintf(duplicateWhereFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ","))
+}
+
+func DuplicateUniqueData(data *SqlData, execData string) string {
+	return fmt.Sprintf(duplicateArrayUniqueFunc, data.upTable, data.upTable, data.upTable, execData)
 }
