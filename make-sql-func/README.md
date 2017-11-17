@@ -22,7 +22,7 @@
         }
       ],
       "index":"id",
-	  "unique":["id","name"],
+      "unique":["id","name"],
       "model": [1, 2, 3]
     }
   ]
@@ -40,10 +40,12 @@
 	- `unique`: table unique index.
     - `model`: make function model. (default null mean all)
 
+```
 
-`model`:
+`model`
 	1. insert function
 	2. delete function
 	3. update function
 	4. select function
 	5. insert into with on duplicate key update
+```
