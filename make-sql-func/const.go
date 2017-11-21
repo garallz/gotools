@@ -1,6 +1,6 @@
-package sqlFunc
+package main
 
-const head string = "import (\n\"database/sql\"\n%s)\n\ntype %sTable struct{\n%s\n}\n\n"
+const head string = "//%s\npackage %s\n\nimport (\n\t\"database/sql\"%s\n)\n\ntype %sTable struct{\n%s\n}\n\n"
 
 const (
 	constInsert       string = "const Insert%s = \"INSERT INTO `%s` (%s) VALUES (%s)\""
@@ -47,16 +47,19 @@ func Insert%sArray(db *sql.DB, data []*%sTable) error {
 // 4: scan string
 const queryIndexFunc string = `
 // Query one row by index
-func Query%sIndex(db *sql.DB, index interface{}) (data *%sTable, err error) {
-	err = db.QueryRow(SelectIndex%s, index).Scan(%s)
-	return data, err
+func Query%sIndex(db *sql.DB, index interface{}) (*%sTable, error) {
+	var row = new(%sTable)
+	var err = db.QueryRow(SelectIndex%s, index).Scan(
+	%s,
+	)
+	return row, err
 }`
 
 // 1&2&3&4&5: upTable
 // 6: scan string
 const queryAllFunc string = `
 // Get all table rows.
-func Query%sAll(db *sql.DB) (data []*%sTable, err error) {
+func Query%sAll(db *sql.DB) ([]*%sTable, error) {
 	r, err := db.Query(SelectAll%s)
 	if err != nil {
 		return nil, err
@@ -65,11 +68,13 @@ func Query%sAll(db *sql.DB) (data []*%sTable, err error) {
 
 		var result = make([]*%sTable, 0)
 		for r.Next() {
-			var data = &%sTable{}
-			if err = r.Scan(%s); err != nil {
+			var row = &%sTable{}
+			if err = r.Scan(
+				%s,
+			); err != nil {
 				return result, err
 			} else {
-				result = append(result, data)
+				result = append(result, row)
 			}
 		}
 		return result, nil
@@ -80,7 +85,7 @@ func Query%sAll(db *sql.DB) (data []*%sTable, err error) {
 // 6: scan string
 const queryAllWhereFunc string = `
 // Query data by where query.
-func Query%sWhere(db *sql.DB, where string, query ...interface{}) (data []*%sTable, err error) {
+func Query%sWhere(db *sql.DB, where string, query ...interface{}) ([]*%sTable, error) {
 	r, err := db.Query(SelectWhere%s + where, query...)
 	if err != nil {
 		return nil, err
@@ -89,11 +94,13 @@ func Query%sWhere(db *sql.DB, where string, query ...interface{}) (data []*%sTab
 
 		var result = make([]*%sTable, 0)
 		for r.Next() {
-			var data = &%sTable{}
-			if err = r.Scan(%s); err != nil {
+			var row = &%sTable{}
+			if err = r.Scan(
+				%s,
+			); err != nil {
 				return result, err
 			} else {
-				result = append(result, data)
+				result = append(result, row)
 			}
 		}
 		return result, nil
@@ -164,7 +171,7 @@ func Update%sUnique(db *sql.DB, data []*%sTable) error {
 // 4: tabel value string
 const duplicateArrayUniqueFunc string = `
 // Mysql: On Duplicate Key Update
-// insert or update by unique.
+// insert or update by unique and index.
 func Duplicate%sUnique(db *sql.DB, data []*%sTable) error {
 	if tx, err := db.Begin(); err != nil {
 		return err
@@ -178,17 +185,6 @@ func Duplicate%sUnique(db *sql.DB, data []*%sTable) error {
 		}
 		return tx.Commit()
 	}
-}`
-
-// 1&2&3: upTable
-// 4: tabel value string
-const duplicateWhereFunc string = `
-// Mysql: On Duplicate Key Update	
-// fields is need update table field strint, eg: "name = ?, age = ?"
-// fields and rows the order needs one-to-one correspondence.
-func Duplicate%sIndex(db *sql.DB, data *%sTable, query string, rows ...interface{}) error {
-	_, err := db.Exec(Duplicate%s + query, %s, rows...)
-	return err
 }`
 
 // 1: Function name

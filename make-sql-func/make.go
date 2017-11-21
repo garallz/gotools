@@ -1,4 +1,4 @@
-package sqlFunc
+package main
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -55,7 +56,7 @@ type SqlData struct {
 	} `json:"fields`
 }
 
-func MakeSqlFunction(fileName string) {
+func MakeSqlFunction(fileName, path string) error {
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		panic(file)
@@ -67,31 +68,47 @@ func MakeSqlFunction(fileName string) {
 		panic(err)
 	}
 
+	if path != "" {
+		if path[len(path)-1:] != `/` || path[len(path)-1:] != `\` {
+			if runtime.GOOS == "windows" {
+				path += `\`
+			} else {
+				path += `/`
+			}
+		}
+	}
+
 	// Make common sql function file.
-	makeConstFile(data)
+	makeConstFile(data, path)
 
 	for _, row := range data.Data {
-		newFile, err := os.OpenFile(row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		newFile, err := os.OpenFile(path+row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			panic(err)
 		}
 
+		row.upTable = CamelCaseString(row.Table)
+		var timeBool, values string
 		for i, field := range row.Fields {
+			if field.Type == "time.Time" {
+				timeBool = "\n\t\"time\""
+			}
 			row.Fields[i].upName = CamelCaseString(field.Name)
+			values += row.Fields[i].upName + "\t" + field.Type + "\n"
 		}
 
-		newFile.WriteString(fmt.Sprintf("//%s\npackage %s\n\n", row.Message, data.Package))
+		newFile.WriteString(fmt.Sprintf(head, row.Message, data.Package, timeBool, row.upTable, values))
 		newFile.WriteString(dealWithTable(row))
 
 		newFile.Close()
 	}
 
-	exec.Command("sh", "-c", "go fmt").Run()
+	return exec.Command("sh", "-c", "go fmt").Run()
 }
 
 // Make a sql_const.go file.
-func makeConstFile(data *SqlFunc) {
-	file, err := os.OpenFile("sql_const.go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func makeConstFile(data *SqlFunc, path string) {
+	file, err := os.OpenFile(path+"sql_const.go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)
 	}
@@ -106,23 +123,16 @@ func makeConstFile(data *SqlFunc) {
 // convert table name and values name to camel-case string, using with struct.
 // generate query and scan string to sql function to do.
 func dealWithTable(row *SqlData) string {
-	row.upTable = CamelCaseString(row.Table)
-	var queryString, scanString, timeBool, values string
+	var queryString, scanString []string
 	for _, field := range row.Fields {
-		if field.Type == "time.Time" {
-			timeBool = "\"time\"\n"
-		}
-		values += field.upName + "\t" + field.Type + "\n"
-		queryString += "`" + field.Name + "`, "
-		scanString += "\n&data." + field.upName + ", "
+		queryString = append(queryString, "`"+field.Name+"`")
+		scanString = append(scanString, "&row."+field.upName)
 	}
-
-	var str = fmt.Sprintf(head, timeBool, row.upTable, values)
 
 	if len(row.Model) == 0 {
 		row.Model = []int{1, 2, 3, 4, 5}
 	}
-	return str + checkModelArray(row, queryString[:len(queryString)-2], scanString+"\n")
+	return checkModelArray(row, strings.Join(queryString, ", "), strings.Join(scanString, ",\n"))
 }
 
 func checkModelArray(data *SqlData, queryString, scanString string) string {
@@ -161,6 +171,10 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 			}
 			// When update the table, ignore unique update.
 			if len(data.Unique) != 0 {
+				// If Unique == Index, continue.
+				if len(data.Unique) == 1 && data.Unique[0] == data.Index {
+					continue
+				}
 				var setQuery, whereQuery, setData, whereData []string
 			UpdateGo:
 				for _, row := range data.Fields {
@@ -189,14 +203,18 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 			funcString = append(funcString, queryWhereData(data, scanString))
 
 		case 5: // Duplicate
-			if len(data.Unique) != 0 {
+			if len(data.Unique) != 0 || data.Index != "" {
 				var setQuery, setData, execData []string
 			DuplicateGo:
 				for _, row := range data.Fields {
 					execData = append(execData, "row."+row.upName)
-					for _, x := range data.Unique {
-						if row.Name == x || row.Name == data.Index {
-							continue DuplicateGo
+					if row.Name == data.Index {
+						continue
+					} else {
+						for _, x := range data.Unique {
+							if row.Name == x {
+								continue DuplicateGo
+							}
 						}
 					}
 					setQuery = append(setQuery, "`"+row.Name+"` = ?")
@@ -205,8 +223,7 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 				constString = append(constString, fmt.Sprintf(constDupliUnique, data.upTable, data.Table, queryString, num[:len(num)-2], strings.Join(setQuery, ", ")))
 				funcString = append(funcString, DuplicateUniqueData(data, strings.Join(append(execData, setData...), ",\n")))
 			}
-			//constString = append(constString, fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2]))
-			//funcString = append(funcString, DuplicateData(data))
+			constString = append(constString, fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2]))
 		default:
 			continue
 		}

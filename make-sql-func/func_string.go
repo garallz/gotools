@@ -1,4 +1,4 @@
-package sqlFunc
+package main
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ func insertArrData(data *SqlData) string {
 }
 
 func queryRowData(data *SqlData, scanString string) string {
-	return fmt.Sprintf(queryIndexFunc, data.upTable, data.upTable, data.upTable, scanString)
+	return fmt.Sprintf(queryIndexFunc, data.upTable, data.upTable, data.upTable, data.upTable, scanString)
 }
 
 func queryAllData(data *SqlData, scanString string) string {
@@ -58,14 +58,6 @@ func updateRowData(data *SqlData) string {
 
 func updateUniqueArrayData(data *SqlData, execData string) string {
 	return fmt.Sprintf(updateUniqueFunc, data.upTable, data.upTable, data.upTable, execData)
-}
-
-func DuplicateData(data *SqlData) string {
-	var values []string
-	for _, field := range data.Fields {
-		values = append(values, "data."+field.upName)
-	}
-	return fmt.Sprintf(duplicateWhereFunc, data.upTable, data.upTable, data.upTable, strings.Join(values, ","))
 }
 
 func DuplicateUniqueData(data *SqlData, execData string) string {

@@ -1,4 +1,4 @@
-package sqlFunc
+package main
 
 import (
 	"sort"

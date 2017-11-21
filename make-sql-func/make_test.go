@@ -1,6 +1,7 @@
-package sqlFunc
+package main
 
 import (
+	"fmt"
 	"os/exec"
 	"testing"
 )
@@ -10,5 +11,10 @@ func TestMakeSqlFunction(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	MakeSqlFunction("env.json")
+
+	if err = MakeSqlFunction("env.json", ""); err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println("Make sql function success!")
+	}
 }

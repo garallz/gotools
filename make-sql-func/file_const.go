@@ -1,4 +1,4 @@
-package sqlFunc
+package main
 
 const ConstFile = `// Sql Common Set
 package %s 
@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	ErrValuesLength = errors.New("Update values not eq fields!")
-	ErrFieldNameNull = errors.New("Update data was wrong than field name is null!")
-	ErrFieldsNull = errors.New("Fields array was null.")
+	ErrValuesLength		= errors.New("Update values not eq fields!")
+	ErrFieldNameNull	= errors.New("Update data was wrong than field name is null!")
+	ErrFieldsNull		= errors.New("Fields array was null.")
 )
 
 type FieldData struct {
