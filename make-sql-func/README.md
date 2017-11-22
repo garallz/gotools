@@ -4,7 +4,7 @@
 - Test run
 1. go get package
 ```shell
-$ go get github.com/garallz/Go/make-sql-func
+$ go get -u github.com/garallz/Go/make-sql-func
 ```
 
 2. make a test function to generate code.
@@ -17,7 +17,7 @@ import (
 )
 
 func TestMakeSqlFunction(t *testing.T) {
-	err := MakeSqlFunction("envFile", "")
+	err := MakeSqlFunction(profile, "")
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -27,20 +27,28 @@ func TestMakeSqlFunction(t *testing.T) {
 ```
 
 - Build run
-1. go get package and install.
+1. go get package.
 ```shell
-$ go get -d github.com/garallz/Go/make-sql-func
+$ go get -u github.com/garallz/Go/make-sql-func
 ```
 
-2. run executable file to make the sql function.
+2. build or install make-sql-func
 ```shell
-// default: generate under the current path
+$ cd $GOPATH/src/github.com/garallz/Go/make-sql-func
 
-$ ./make-sql-func envFile
+$ go install	// make in $GOPATH/bin
+$ go build		// make in current path
 ```
+
+3. run executable file to make the sql function.
+```shell
+$ ./make-sql-func profile
+```
+
+`default: function file generate under the current path`
 
 -----------------------------------------------------------------------------
-// Env file set.
+// Profile set.
 ```json
 {
   	"package": "main",

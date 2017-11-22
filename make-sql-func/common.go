@@ -18,6 +18,7 @@ func CamelCaseString(field string) string {
 			num = i + 1
 		} else {
 			if i == num && r <= 122 && r >= 97 {
+				// Convert a-z To A-Z.
 				result = append(result, r-32)
 			} else {
 				result = append(result, r)

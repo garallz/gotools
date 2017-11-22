@@ -56,6 +56,7 @@ type SqlData struct {
 	} `json:"fields`
 }
 
+// Make sql function import.
 func MakeSqlFunction(fileName, path string) error {
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -68,6 +69,7 @@ func MakeSqlFunction(fileName, path string) error {
 		panic(err)
 	}
 
+	// Check path string.
 	if path != "" {
 		if path[len(path)-1:] != `/` || path[len(path)-1:] != `\` {
 			if runtime.GOOS == "windows" {
@@ -82,6 +84,7 @@ func MakeSqlFunction(fileName, path string) error {
 	makeConstFile(data, path)
 
 	for _, row := range data.Data {
+		// Generate function file.
 		newFile, err := os.OpenFile(path+row.Table+".go", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			panic(err)
@@ -90,6 +93,7 @@ func MakeSqlFunction(fileName, path string) error {
 		row.upTable = CamelCaseString(row.Table)
 		var timeBool, values string
 		for i, field := range row.Fields {
+			// If table fields have time type, import time.Time.
 			if field.Type == "time.Time" {
 				timeBool = "\n\t\"time\""
 			}
@@ -113,7 +117,7 @@ func makeConstFile(data *SqlFunc, path string) {
 		panic(err)
 	}
 
-	var context = fmt.Sprintf(ConstFile, data.Package)
+	var context = fmt.Sprintf(fileCommonConst, data.Package)
 	file.WriteString(context)
 	file.Close()
 }
@@ -135,6 +139,8 @@ func dealWithTable(row *SqlData) string {
 	return checkModelArray(row, strings.Join(queryString, ", "), strings.Join(scanString, ",\n"))
 }
 
+// check and range model to generate function.
+// if index or unique index not null, will make the index function.
 func checkModelArray(data *SqlData, queryString, scanString string) string {
 	var num = strings.Repeat("?, ", len(data.Fields))
 	var constString, funcString []string
@@ -142,12 +148,12 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 	for _, model := range DeleteSameInt(data.Model) {
 		switch model {
 
-		case 1: // Insert
+		case 1: // Insert Functions
 			constString = append(constString, fmt.Sprintf(constInsert, data.upTable, data.Table, queryString, num[:len(num)-2]))
 			funcString = append(funcString, insertRowData(data))
 			funcString = append(funcString, insertArrData(data))
 
-		case 2: // Delete
+		case 2: // Delete Functions
 			if data.Index != "" {
 				constString = append(constString, fmt.Sprintf(constDeleteIndex, data.upTable, data.Table, data.Index))
 				funcString = append(funcString, deleteIndexData(data))
@@ -156,7 +162,7 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 			constString = append(constString, fmt.Sprintf(constDeleteWhere, data.upTable, data.Table))
 			funcString = append(funcString, deleteWhereData(data))
 
-		case 3: // Update
+		case 3: // Update Functions
 			// When update the table, ignore index update.
 			if data.Index != "" {
 				var updateSet []string
@@ -192,7 +198,7 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 				funcString = append(funcString, updateUniqueArrayData(data, strings.Join(append(setData, whereData...), ",\n")))
 			}
 
-		case 4: //Select
+		case 4: //Select Functions
 			if data.Index != "" {
 				constString = append(constString, fmt.Sprintf(constSelectIndex, data.upTable, queryString, data.Table, data.Index))
 				funcString = append(funcString, queryRowData(data, scanString))
@@ -202,7 +208,7 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 			funcString = append(funcString, queryAllData(data, scanString))
 			funcString = append(funcString, queryWhereData(data, scanString))
 
-		case 5: // Duplicate
+		case 5: // Duplicate Functions
 			if len(data.Unique) != 0 || data.Index != "" {
 				var setQuery, setData, execData []string
 			DuplicateGo:
@@ -224,7 +230,8 @@ func checkModelArray(data *SqlData, queryString, scanString string) string {
 				funcString = append(funcString, DuplicateUniqueData(data, strings.Join(append(execData, setData...), ",\n")))
 			}
 			constString = append(constString, fmt.Sprintf(constOnDuplicate, data.upTable, data.Table, queryString, num[:len(num)-2]))
-		default:
+
+		default: // Undefined Function
 			continue
 		}
 	}
