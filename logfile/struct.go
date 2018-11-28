@@ -11,8 +11,8 @@ type (
 )
 
 const (
-	LevelInfo  LogLevel = 1
-	LevelDebug LogLevel = 2
+	LevelDebug LogLevel = 1
+	LevelInfo  LogLevel = 2
 	LevelWarn  LogLevel = 3
 	LevelError LogLevel = 4
 	LevelFatal LogLevel = 5

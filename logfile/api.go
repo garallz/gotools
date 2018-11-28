@@ -12,18 +12,18 @@ func LogInit(l *LogStruct) *LogData {
 	return d
 }
 
-// Write log data with log level was Info.
-func (l *LogData) WriteInfo(messages ...interface{}) error {
-	if l.level == LevelInfo {
-		return l.put(" INFO  ", messages)
+// Write log data with log level was Debug.
+func (l *LogData) WriteDebug(messages ...interface{}) error {
+	if l.level == LevelDebug {
+		return l.put(" DEBUG ", messages)
 	}
 	return nil
 }
 
-// Write log data with log level was Debug.
-func (l *LogData) WriteDebug(messages ...interface{}) error {
-	if l.level <= LevelDebug {
-		return l.put(" DEBUG ", messages)
+// Write log data with log level was Info.
+func (l *LogData) WriteInfo(messages ...interface{}) error {
+	if l.level <= LevelInfo {
+		return l.put(" INFO  ", messages)
 	}
 	return nil
 }
