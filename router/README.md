@@ -5,6 +5,7 @@
 ### Auto deal with response body to json and xml
 
 ### Make request uid
+    - uid = IP + Time + Rand
 
 ### Make request log and response log
 

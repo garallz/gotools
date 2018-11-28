@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -35,14 +34,19 @@ func (data *CommRouter) DealWithRequest() {
 	} else if defaultContentType == ContentTypeNon {
 		data.Err = errors.New("Header don't have Content-Type")
 		data.Message = data.Err.Error()
+		data.ErrCode = http.StatusBadRequest
 		return
 	}
 
 	if data.Req.Method == "POST" {
 		// read request body to byte
-		if body, err := ioutil.ReadAll(data.Req.Body); err != nil {
+		if body, err := ioutil.ReadAll(data.Req.Body); err != nil || len(body) == 0 {
 			data.Err = err
-			data.Message = "Request Body Read Fail"
+			data.ErrCode = http.StatusBadRequest
+			if err == nil {
+				data.Err = errors.New("body is null")
+			}
+			data.Message = "Read Request Body Fail: " + data.Err.Error()
 			return
 		} else {
 			data.ReqBody = body
@@ -62,13 +66,11 @@ const (
 )
 
 func (data *CommRouter) DealWithResponse() {
-	data.Status = http.StatusAccepted
-
+	// check function error
 	if data.Err != nil {
 		if data.ErrCode == nil {
 			data.ErrCode = "FAIL"
 		}
-		log.Printf("JobId: %s, Name: function_deal_fail, Error: %v", data.JobId, data.Err)
 		if len(data.RspBody) == 0 {
 			if data.ContentType == ContentTypeJson {
 				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, data.ErrCode, data.Message, data.JobId))
@@ -80,9 +82,7 @@ func (data *CommRouter) DealWithResponse() {
 		}
 		return
 	} else if len(data.RspBody) > 0 {
-		if data.Status == 0 {
-			data.Status = http.StatusOK
-		}
+		data.CheckStatus(http.StatusOK)
 		return
 	}
 
@@ -91,14 +91,14 @@ func (data *CommRouter) DealWithResponse() {
 		if data.Result != nil {
 			// convert data.Result struct to byte
 			if data.RspBody, data.Err = json.Marshal(data.Result); data.Err == nil {
-				data.Status = http.StatusOK
+				data.CheckStatus(http.StatusOK)
 			} else {
 				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.JobId))
 			}
 		} else if len(data.RspMap) > 0 {
 			// convert data.Result struct to byte
 			if data.RspBody, data.Err = json.Marshal(data.RspMap); data.Err == nil {
-				data.Status = http.StatusOK
+				data.CheckStatus(http.StatusOK)
 			} else {
 				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.JobId))
 			}
@@ -107,14 +107,14 @@ func (data *CommRouter) DealWithResponse() {
 		if data.Result != nil {
 			// convert data.Result struct to byte
 			if data.RspBody, data.Err = xml.Marshal(data.Result); data.Err == nil {
-				data.Status = http.StatusOK
+				data.CheckStatus(http.StatusOK)
 			} else {
 				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.JobId))
 			}
 		} else if len(data.RspMap) > 0 {
 			// convert data.RspMap
 			if data.RspBody, data.Err = xml.Marshal(XmlMap(data.RspMap)); data.Err == nil {
-				data.Status = http.StatusOK
+				data.CheckStatus(http.StatusOK)
 			} else {
 				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.JobId))
 			}
@@ -122,6 +122,12 @@ func (data *CommRouter) DealWithResponse() {
 	}
 
 	return
+}
+
+func (data *CommRouter) CheckStatus(status int) {
+	if data.Status == 0 {
+		data.Status = status
+	}
 }
 
 // Convert xml to map[string]string and map[string]string to xml function

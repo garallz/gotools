@@ -62,6 +62,9 @@ func CommonDealRequest(w http.ResponseWriter, r *http.Request) {
 	// Deal with response
 	comm.DealWithResponse()
 
+	// Check response status
+	comm.CheckStatus(http.StatusAccepted)
+
 	w.WriteHeader(comm.Status)
 	w.Write(comm.RspBody)
 
@@ -112,7 +115,7 @@ func MakeUid(r *http.Request, timestamp time.Time) string {
 	for i := 0; i < 10; i++ {
 		bte = append(bte, byte(rand.Intn(26)+65))
 	}
-	// UID = IP + Time + Range
+	// UID = IP + Time + Rand
 	return fmt.Sprintf("%s-%s-%s",
 		ByteToString(ip),
 		timestamp.Format("060102150405"),
