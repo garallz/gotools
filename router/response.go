@@ -68,14 +68,17 @@ const (
 func (data *CommRouter) DealWithResponse() {
 	// check function error
 	if data.Err != nil {
-		if data.ErrCode == nil {
-			data.ErrCode = "FAIL"
-		}
 		if len(data.RspBody) == 0 {
+			if data.ErrCode == nil {
+				data.ErrCode = "FAIL"
+			}
+			if data.Message == "" {
+				data.Message = data.Err.Error()
+			}
 			if data.ContentType == ContentTypeJson {
-				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, data.ErrCode, data.Message, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, data.ErrCode, data.Message, data.Uid))
 			} else if data.ContentType == ContentTypeXml {
-				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, data.ErrCode, data.Message, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, data.ErrCode, data.Message, data.Uid))
 			} else {
 				data.RspBody = []byte(data.Message)
 			}
@@ -93,14 +96,14 @@ func (data *CommRouter) DealWithResponse() {
 			if data.RspBody, data.Err = json.Marshal(data.Result); data.Err == nil {
 				data.CheckStatus(http.StatusOK)
 			} else {
-				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.Uid))
 			}
 		} else if len(data.RspMap) > 0 {
 			// convert data.Result struct to byte
 			if data.RspBody, data.Err = json.Marshal(data.RspMap); data.Err == nil {
 				data.CheckStatus(http.StatusOK)
 			} else {
-				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(JsonErrResponseStr, "FAIL", data.Err, data.Uid))
 			}
 		}
 	case ContentTypeXml:
@@ -109,14 +112,14 @@ func (data *CommRouter) DealWithResponse() {
 			if data.RspBody, data.Err = xml.Marshal(data.Result); data.Err == nil {
 				data.CheckStatus(http.StatusOK)
 			} else {
-				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.Uid))
 			}
 		} else if len(data.RspMap) > 0 {
 			// convert data.RspMap
 			if data.RspBody, data.Err = xml.Marshal(XmlMap(data.RspMap)); data.Err == nil {
 				data.CheckStatus(http.StatusOK)
 			} else {
-				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.JobId))
+				data.RspBody = []byte(fmt.Sprintf(XmlErrResponseStr, "FAIL", data.Err, data.Uid))
 			}
 		}
 	}

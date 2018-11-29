@@ -15,21 +15,24 @@ import (
 type CommRouter struct {
 	// requset data
 	Req         *http.Request
-	ReqMap      map[string]string
-	ReqBody     []byte
-	JobId       string
-	StartTime   time.Time
-	ContentType ContentType
+	ReqMap      map[string]string // request body convert to map
+	ReqBody     []byte            // request body ([]byte)
+	Uid         string            // request uid
+	StartTime   time.Time         // request deal with start time
+	ContentType ContentType       // request content type
+
+	// use commont function ext values
+	Ext map[string]interface{}
 
 	// response data
-	Err     error
-	ErrCode interface{} // can use int or string
-	Message string
-	Status  int
-	RspBody []byte
-	Result  interface{}
-	RspMap  map[string]string
-	EndTime time.Time
+	Err     error             // error
+	ErrCode interface{}       // can use int or string
+	Message string            // err not null, response message
+	Status  int               // http.Status
+	RspBody []byte            // response body will read RspBody -> Result -> RspMap
+	Result  interface{}       // json or xml struct data to response
+	RspMap  map[string]string // json or xml map to response
+	EndTime time.Time         // deal end response time
 }
 
 // Common Deal With Request and Response
@@ -39,16 +42,22 @@ func CommonDealRequest(w http.ResponseWriter, r *http.Request) {
 		Req:       r,
 		ReqMap:    make(map[string]string),
 		StartTime: timestamp,
-		JobId:     MakeUid(r, timestamp),
+		Uid:       MakeUid(r, timestamp),
 	}
 
-	log.Printf("\t%s\t%s\t%s", r.RemoteAddr, r.URL.Path, comm.JobId)
+	// make request log
+	log.Printf("\t%s\t%s\t%s", r.RemoteAddr, r.URL.Path, comm.Uid)
 
 	// Deal with request
 	comm.DealWithRequest()
 
-	if comm.Err == nil {
+	// Deal with common request function
+	if comm.Err == nil && reqCommDeal.check {
+		comm.Ext = make(map[string]interface{})
+		reqCommDeal.function(comm)
+	}
 
+	if comm.Err == nil {
 		// result is interface
 		// when err not equal null, return fail and message
 		if f := GetFunction(r.URL.Path); f == nil {
@@ -75,10 +84,12 @@ func CommonDealRequest(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// make request and response log
+// latency is event from request to response need time, (ms)
 func requestAndResponseLog(comm *CommRouter) {
-	var latency = time.Now().Sub(comm.StartTime).Seconds()
+	var latency = time.Now().Sub(comm.StartTime).Seconds() * 1000
 	var data = map[string]interface{}{
-		"uid":     comm.JobId,
+		"uid":     comm.Uid,
 		"name":    "request_and_response",
 		"date":    comm.StartTime.Format("2006/01/02 15:04:05"),
 		"status":  comm.Status,
@@ -98,6 +109,7 @@ func requestAndResponseLog(comm *CommRouter) {
 	log.Println(data)
 }
 
+// can convert 0-255 to string
 func ByteToString(data []string) string {
 	var result = make([]byte, 0)
 	for _, row := range data {
@@ -107,6 +119,8 @@ func ByteToString(data []string) string {
 	return string(result)
 }
 
+// make request event id
+// UID = IP + Time + Rand
 func MakeUid(r *http.Request, timestamp time.Time) string {
 	ip := strings.Split(strings.Split(r.RemoteAddr, ":")[0], ".")
 
@@ -115,7 +129,7 @@ func MakeUid(r *http.Request, timestamp time.Time) string {
 	for i := 0; i < 10; i++ {
 		bte = append(bte, byte(rand.Intn(26)+65))
 	}
-	// UID = IP + Time + Rand
+
 	return fmt.Sprintf("%s-%s-%s",
 		ByteToString(ip),
 		timestamp.Format("060102150405"),

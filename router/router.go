@@ -71,6 +71,18 @@ func (s *Server) Delete(path string, function func(*CommRouter)) {
 	}
 }
 
+var reqCommDeal struct {
+	check    bool
+	function func(*CommRouter)
+}
+
+// Deal with common function with request
+// defore body function
+func (s *Server) CommonReqFunction(function func(*CommRouter)) {
+	reqCommDeal.check = true
+	reqCommDeal.function = function
+}
+
 func (s *Server) Run() {
 	s.server.Handler = http.HandlerFunc(CommonDealRequest)
 
