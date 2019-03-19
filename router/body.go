@@ -192,9 +192,14 @@ func CommonDealWith(w http.ResponseWriter, r *http.Request) {
 		comm.Err = errors.New("Url Path Error")
 		comm.Message = comm.Err.Error()
 	} else {
-		for _, f := range fs.function {
-			if f(comm); comm.Err != nil {
-				break
+		if fs.method != r.Method {
+			comm.PutError("Request method not right:", r.Method)
+			comm.PutMessage("Request method should be:", fs.method)
+		} else {
+			for _, f := range fs.function {
+				if f(comm); comm.Err != nil {
+					break
+				}
 			}
 		}
 	}
