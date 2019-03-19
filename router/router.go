@@ -1,7 +1,6 @@
 package router
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 )
@@ -49,12 +48,11 @@ func (s *Server) SetDefaultContentType(contentType string) {
 }
 
 // max requesty body read, default: 1024*1024 bytes
-func (s *Server) SetMaxBodyRead(number int) error {
+func (s *Server) SetMaxBodyRead(number int) {
 	if number < 512 {
-		return errors.New("Min body lenght is 512 bytes")
+		panic("Min body lenght is 512 bytes")
 	}
 	s.maxRead = int64(number)
-	return nil
 }
 
 func (s *Server) Post(path string, functions ...func(*CommRouter)) {
