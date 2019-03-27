@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/garallz/Go/router/log"
 )
 
 // request count
@@ -27,6 +29,9 @@ type CommRouter struct {
 	RspBody []byte            // response body will read RspBody -> Result -> RspMap
 	Result  interface{}       // json or xml struct data to response
 	RspMap  map[string]string // json or xml map to response
+
+	// Log write system
+	log *logfile.LogServer
 
 	// requset data
 	req     *http.Request
@@ -188,9 +193,20 @@ func CommonDealWith(w http.ResponseWriter, r *http.Request) {
 	log.Printf("\t%s\t%s\t%s", r.RemoteAddr, r.URL.Path, comm.uid)
 
 	// Deal with functions
-	if fs := getFunction(r.URL.Path); fs == nil {
-		comm.Err = errors.New("Url Path Error")
-		comm.Message = comm.Err.Error()
+	if fs, ok := getFunction(r.URL.Path); !ok {
+		if fs, ok := getFunction(defaultPath); ok && fs != nil {
+			for _, f := range fs.function {
+				if f(comm); comm.Err != nil {
+					break
+				}
+			}
+		} else {
+			comm.PutError("Url Path Error:", r.URL.Path)
+			comm.Message = "Url Error"
+		}
+	} else if fs == nil {
+		comm.Err = errors.New("Path Function Get Error")
+		comm.Message = "Url Path Not Function"
 	} else {
 		if fs.method != r.Method {
 			comm.PutError("Request method not right:", r.Method)
@@ -229,28 +245,4 @@ func CommonDealWith(w http.ResponseWriter, r *http.Request) {
 	go requestAndResponseLog(comm)
 
 	return
-}
-
-// make request and response log
-// latency is event from request to response need time, (ms)
-func requestAndResponseLog(comm *CommRouter) {
-	var latency = time.Now().Sub(comm.start).Seconds() * 1000
-	var data = map[string]interface{}{
-		"uid":      comm.uid,
-		"name":     "request_and_response",
-		"date":     comm.start.Format("2006-01-02 15:04:05"),
-		"status":   comm.status,
-		"latency":  latency,
-		"ip":       comm.req.RemoteAddr,
-		"method":   comm.req.Method,
-		"path":     comm.req.URL.Path,
-		"request":  bytesToString(comm.body),
-		"response": bytesToString(comm.RspBody),
-	}
-	log.Println(data)
-}
-
-func bytesToString(data []byte) string {
-	temp := strings.Replace(string(data), "\n", "", -1)
-	return strings.Replace(temp, "\t", " ", -1)
 }

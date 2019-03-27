@@ -8,6 +8,8 @@ import (
 // Set glabol server
 var glabol *Server
 
+const defaultPath = "DEFAULT"
+
 type Server struct {
 	maxRead     int64
 	content     ContentType
@@ -87,6 +89,12 @@ func (s *Server) Delete(path string, functions ...func(*CommRouter)) {
 	}
 }
 
+func (s *Server) Default(functions ...func(*CommRouter)) {
+	s.routers[defaultPath] = &RouterPath{
+		function: functions,
+	}
+}
+
 func (s *Server) Run() {
 	glabol = s
 	glabol.server.Handler = http.HandlerFunc(CommonDealWith)
@@ -100,8 +108,9 @@ func getContentType() ContentType {
 	return glabol.contentType
 }
 
-func getFunction(path string) *RouterPath {
-	return glabol.routers[path]
+func getFunction(path string) (*RouterPath, bool) {
+	f, ok := glabol.routers[path]
+	return f, ok
 }
 
 func getMaxBodyRead() int64 {
