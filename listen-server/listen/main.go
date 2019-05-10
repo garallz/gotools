@@ -10,13 +10,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/garallz/Go/ctrl-server"
+	"github.com/garallz/Go/listen-server"
 )
 
 var errResult []byte
 
 func init() {
-	errResult = []byte(`{"code":"400","error":"Json Marshal Error"}`)
+	var err error
+	errResult, err = json.Marshal(&listen.ServerStatus{
+		Code: listen.CodeFAIL,
+		Err:  "Json Marshal Error",
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 var post = flag.String("p", "9080", "Listen Post")
@@ -72,12 +79,12 @@ func status(data *listen.ServerQuery) *listen.ServerStatus {
 	comp := getcomputer()
 
 	return &listen.ServerStatus{
-		Pid:      pid,
-		Name:     data.Name,
-		Process:  proc,
-		Computer: comp,
-		Status:   convertState(proc["state"]),
-		Code:     listen.CodeSuccess,
+		Pid:     pid,
+		Name:    data.Name,
+		Process: proc,
+		Server:  comp,
+		Status:  convertState(proc["state"]),
+		Code:    listen.CodeSuccess,
 	}
 }
 
@@ -111,8 +118,8 @@ func control(data *listen.ServerQuery) *listen.ServerStatus {
 		}
 	} else {
 		return &listen.ServerStatus{
-			Code:     listen.CodeSuccess,
-			Computer: getcomputer(),
+			Code:   listen.CodeSuccess,
+			Server: getcomputer(),
 		}
 	}
 }

@@ -13,6 +13,7 @@ const (
 	CommandRestart ListenCommand = 4
 )
 
+// Process status
 const (
 	ModeStart   = "START"
 	ModeStop    = "STOP"
@@ -39,13 +40,13 @@ type ServerQuery struct {
 }
 
 type ServerStatus struct {
-	Name     string            `json:"name,omitempty"`
-	Computer map[string]string `json:"computer,omitempty"`
-	Pid      int               `json:"pid,omitempty"`
-	Status   string            `json:"status,omitempty"`
-	Process  map[string]string `json:"process,omitempty"`
-	Code     string            `json:"code"`
-	Err      string            `json:"error,omitempty"`
+	Name    string            `json:"name,omitempty"`
+	Server  map[string]string `json:"server,omitempty"`
+	Pid     int               `json:"pid,omitempty"`
+	Status  string            `json:"status,omitempty"`
+	Process map[string]string `json:"process,omitempty"`
+	Code    string            `json:"code"`
+	Err     string            `json:"error,omitempty"`
 }
 
 func QueryToByte(name, user, action string, mode ListenCommand) ([]byte, error) {
