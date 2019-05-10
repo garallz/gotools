@@ -18,11 +18,11 @@
 ]
 ```
 
-- url: 		 listen server url
+-       url: listen server url
 - serv_name: specify the unique process name of server
 - proc_name: process name in server
 - user_name: run in server by user
-- action:	 server control process by command
+-    action: server control process by command
 
 ## Useing
 
@@ -60,12 +60,12 @@ $ nohup ./listen -p 8090 &
 
 ```go
 type ServerStatus struct {
-	Name     string            `json:"name,omitempty"`		// serv_name
-	Server map[string]string `json:"server,omitempty"`	// server detail
-	Pid      int               `json:"pid,omitempty"`		// process pid
-	Status   string            `json:"status,omitempty"`	// process status
-	Process  map[string]string `json:"process,omitempty"`	// process detail
-	Code     string            `json:"code"`				// return status: [SUCCESS, FAIL]
-	Err      string            `json:"error,omitempty"`		// if Code == FAIL, Err != Null
+	Name    string              // serv_name
+	Server  map[string]string   // server detail
+	Pid     int                 // process pid
+	Status  string              // process status
+	Process map[string]string   // process detail
+	Code    string              // return status: [SUCCESS, FAIL]
+	Err     string              // if Code == FAIL, Err != Null
 }
 ```
