@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"net/http"
+	"strconv"
 	"testing"
 )
 
@@ -20,20 +21,40 @@ func TestSandbox(t *testing.T) {
 	s := NewRouter(&http.Server{
 		Addr: ":9080",
 	})
-	s.Post("/sandbox", Sandbox)
+
+	s.SetDefaultContentType("xml")
+
+	s.Post("/sandbox", CheckModel, Sandbox)
 	s.Run()
+}
+
+func CheckModel(data *CommRouter) {
+	data.SetResponseConvert()
+
+	result, err := data.GetRequestMap()
+	if err != nil {
+		data.PutError("Can't convert to map")
+	}
+	if v, ok := result["mid"]; !ok {
+		data.PutError("Request not have mid value")
+	} else if _, err := strconv.Atoi(v); err != nil {
+		data.PutError("Mid is not", "number")
+		// data.Err = errors.New("Mid is not number")
+	}
 }
 
 func Sandbox(data *CommRouter) {
 	req := &SandboxRequest{}
-	if data.ContentType == ContentTypeJson {
-		if err := json.Unmarshal(data.ReqBody, req); err != nil {
+	body, _ := data.GetBody()
+
+	if data.GetContentType() == ContentTypeJson {
+		if err := json.Unmarshal(body, req); err != nil {
 			data.Err = err
-			data.Message = "Sandbox xml unmarshal error: " + err.Error()
+			data.Message = "Sandbox json unmarshal error: " + err.Error()
 			return
 		}
-	} else if data.ContentType == ContentTypeXml {
-		if err := xml.Unmarshal(data.ReqBody, req); err != nil {
+	} else if data.GetContentType() == ContentTypeXml {
+		if err := xml.Unmarshal(body, req); err != nil {
 			data.Err = err
 			data.Message = "Sandbox xml unmarshal error: " + err.Error()
 			return
@@ -46,7 +67,7 @@ func Sandbox(data *CommRouter) {
 		data.RspMap = make(map[string]string)
 		data.RspMap["message"] = "Map SUCCESS"
 	} else {
-		data.RspBody = []byte("Byte SUCCESS")
+		data.PutError("Model Wrong")
 	}
 	return
 }
