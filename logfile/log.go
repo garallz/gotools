@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
-	"strings"
 	"time"
 )
 
@@ -47,13 +45,9 @@ func (l *LogStruct) checkStruct() *LogData {
 			d.dir = true
 		}
 		if l.FilePath != "" {
-			path := l.FilePath[len(l.FilePath)-1:]
-			if path != "/" || path != `\` {
-				if runtime.GOOS == "windows" {
-					l.FilePath += `\`
-				} else {
-					l.FilePath += "/"
-				}
+			bte := l.FilePath[len(l.FilePath)-1:]
+			if bte != "/" {
+				l.FilePath += "/"
 			}
 			d.path = l.FilePath
 		}
@@ -105,16 +99,25 @@ func (l *LogData) upFile() {
 }
 
 // put log data and level in buffer.
-func (l *LogData) put(level string, msg ...interface{}) error {
-	d := make([]string, len(msg)+1)
-	d[0] = time.Now().Format(l.format) + level
-	for i, r := range msg {
-		d[i+1] = fmt.Sprintf("%v", r)
+func (l *LogData) put(level string, args []interface{}) error {
+	fmt.Println(args)
+	message := time.Now().Format(l.format) + level +fmt.Sprint(args...)
+	return l.putByte([]byte(message + "\n"))
+}
+
+// put log data and level in buffer by string.
+func (l *LogData) putf(messages string, args []interface{}) error {
+	return l.putByte([]byte(fmt.Sprintf(messages, args...)+"\n"))
+}
+
+func (l *LogData) putPanic(bts []byte) {
+	if l.cache {
+		l.buf = append(l.buf, bts...)
+			l.file.Write(l.buf)
+	} else {
+		l.file.Write(bts)
 	}
-
-	f := []byte(strings.Join(d, " ") + "\n")
-
-	return l.putByte(f)
+	l.file.Close()
 }
 
 // put byte in cache or file.

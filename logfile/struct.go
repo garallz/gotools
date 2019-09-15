@@ -7,6 +7,7 @@ import (
 
 type (
 	LogLevel int
+	DataType int
 	LogTime  string
 )
 
@@ -15,7 +16,11 @@ const (
 	LevelInfo  LogLevel = 2
 	LevelWarn  LogLevel = 3
 	LevelError LogLevel = 4
-	LevelFatal LogLevel = 5
+)
+
+const (
+	DataTypeJson DataType = 1
+	DataTypeByte DataType = 2
 )
 
 const (
@@ -32,24 +37,22 @@ type LogStruct struct {
 	// when LogStruct was null, Cache is true.
 	Cache bool
 	// cache save size (byte).
-	// when cache was true and cache was null, mean cache eq 1024*1024 byte.
+	// when cache was true and cache was null (default 1024*1024 byte)
 	CacheSize int
-	// log time format, eg: "2006-01-02 15:04:05"
-	// when TimeFormat was null, mean eq "2006-01-02 15:04:05",
+	// log time format (default "2006-01-02 15:04:05")
 	TimeFormat string
-	// log file pre name.
-	// when FileName was null, mean pre name eq "log"
+	// log file pre name. (default "log")
 	FileName string
 	// file save path.
 	FilePath string
-	// log save level.
-	// when FileName was null, mean pre name eq LevelError.
+	// log save level. (default LevelError)
 	Level LogLevel
-	// how long about file create.
-	// when FileName was null, mean pre name eq TimeDay.
+	// how long about file create. (default TimeDay)
 	FileTime LogTime
 	// whether create dir to save log file.
 	Dir bool
+	// write log file data type, like: json, byte
+	DataType DataType
 }
 
 type LogData struct {

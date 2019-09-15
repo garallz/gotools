@@ -59,6 +59,7 @@ func CommonDealRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+
 	// Deal with response
 	comm.DealWithResponse()
 
@@ -76,13 +77,12 @@ func CommonDealRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func requestAndResponseLog(comm *CommRouter) {
-	var latency = time.Now().Sub(comm.StartTime).Seconds()
 	var data = map[string]interface{}{
 		"uid":     comm.JobId,
 		"name":    "request_and_response",
 		"date":    comm.StartTime.Format("2006/01/02 15:04:05"),
 		"status":  comm.Status,
-		"latency": latency,
+		"latency": time.Now().Sub(comm.StartTime),
 		"ip":      comm.Req.RemoteAddr,
 		"method":  comm.Req.Method,
 		"path":    comm.Req.URL.Path,

@@ -1,7 +1,6 @@
 package logfile
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -18,47 +17,47 @@ func TestLogJustLogInit(t *testing.T) {
 	}
 }
 
-func TestDirCreate(t *testing.T) {
-	l := LogInit(&LogStruct{
-		FileTime: TimeHour,
-		FilePath: "data",
-		Dir:      true,
-	})
+// func TestDirCreate(t *testing.T) {
+// 	l := LogInit(&LogStruct{
+// 		FileTime: TimeHour,
+// 		FilePath: "data",
+// 		Dir:      true,
+// 	})
 
-	l.WriteError("message")
-}
+// 	l.WriteError("message")
+// }
 
-func TestFileCreate(t *testing.T) {
-	l := LogInit(&LogStruct{
-		FileName:   "log.data",
-		TimeFormat: "15:04:05",
-		FileTime:   TimeMinute,
-	})
+// func TestFileCreate(t *testing.T) {
+// 	l := LogInit(&LogStruct{
+// 		FileName:   "log.data",
+// 		TimeFormat: "15:04:05",
+// 		FileTime:   TimeMinute,
+// 	})
 
-	for i := 0; i <= 65; i++ {
-		l.WriteError(i)
-		time.Sleep(time.Second)
-	}
-}
+// 	for i := 0; i <= 65; i++ {
+// 		l.WriteError(i)
+// 		time.Sleep(time.Second)
+// 	}
+// }
 
 func TestLogLevel(t *testing.T) {
 	l := LogInit(&LogStruct{
 		Level: LevelWarn,
 	})
 
-	err := l.WriteInfo("message")
+	err := l.WriteWarn("message", "111")
 	if err != nil {
 		t.Error(err)
 	}
-	err = l.WriteDebug("message")
+	err = l.WriteError("message", "222")
 	if err != nil {
 		t.Error(err)
 	}
-	err = l.WriteWarn("message")
+	err = l.WriteWarnf("%s %d", "message", 333)
 	if err != nil {
 		t.Error(err)
 	}
-	err = l.WriteError("message")
+	err = l.WriteErrorf("%s %d", "message", 444)
 	if err != nil {
 		t.Error(err)
 	}
@@ -96,22 +95,5 @@ func TestCacheWrite(t *testing.T) {
 	for i := 0; i <= 20; i++ {
 		l.WriteError(str[2])
 		time.Sleep(time.Millisecond * 500)
-	}
-}
-
-func TestByteWrite(t *testing.T) {
-	var b = struct {
-		Time time.Time
-		Data string
-	}{Time: time.Now(), Data: "Test Data."}
-
-	l := LogInit(&LogStruct{})
-
-	if s, err := json.Marshal(b); err != nil {
-		t.Error(err)
-	} else {
-		l.WriteByte(s)
-		// Check \n
-		l.WriteByte(s)
 	}
 }
