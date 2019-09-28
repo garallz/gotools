@@ -1,4 +1,4 @@
-package database
+package table
 
 import (
 	"errors"
@@ -26,14 +26,26 @@ func (t *TableStruct) Supple(rows map[string]interface{}) error {
 
 // SuppleWithTag Supple map data insert to data values by reflect tag name
 func (t *TableStruct) SuppleWithTag(rows map[string]interface{}, tag string) error {
+	return SuppleWithTag(t.data, rows, tag)
+}
+
+// SuppleWithTag : supple rows insert to data struct
+// data is ptr
+func SuppleWithTag(data interface{}, rows map[string]interface{}, tag string) error {
 	if len(rows) == 0 {
 		return nil
 	} else if tag == "" {
 		return errors.New("Supple tag name can not be null")
 	}
 
-	rv := reflect.ValueOf(t.data).Elem()
-	rt := reflect.TypeOf(t.data).Elem()
+	rv := reflect.ValueOf(data)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	rt := reflect.TypeOf(data).Elem()
+	if rv.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
 
 	var fileds = make(map[string]reflect.Value)
 	for i := 0; i < rt.NumField(); i++ {
@@ -249,5 +261,158 @@ func TimeLayout(str string) []string {
 		return []string{"2006-01-02 15:04:05"}
 	default:
 		return nil
+	}
+}
+
+// SuppleWithMap :
+// support type: [string, int, uint, float, bool, time.Time]
+// bool type: ture{"ture", "0"}
+// name: is struct field tag name defalut: 'ref'
+// replace: [true:replace, false:not_replace]
+//	replase defalut false: if origin value not nil, not replace in
+func SuppleWithMap(data interface{}, rows map[string]string, replace bool, name string) error {
+	if len(rows) == 0 {
+		return nil
+	} else if name == "" {
+		return errors.New("struct tag name can not be null")
+	}
+
+	rv := reflect.ValueOf(data)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+
+	rt := reflect.TypeOf(data)
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+
+	var fileds = make(map[string]int)
+	for i := 0; i < rt.NumField(); i++ {
+		key := rt.Field(i).Tag.Get(name)
+		if key != "" {
+			fileds[key] = i
+		}
+	}
+
+	var d reflect.Value
+	for k, v := range rows {
+		if v == "" {
+			continue
+		}
+
+		if i, ok := fileds[k]; !ok {
+			continue
+		} else {
+			d = rv.Field(i)
+		}
+
+		switch d.Interface().(type) {
+
+		case string:
+			if !replace && d.Interface().(string) != "" {
+				continue
+			} else {
+				d.SetString(v)
+			}
+
+		case int, int8, int16, int32, int64:
+			if !replace && TypeInt(d.Interface()) != 0 {
+				continue
+			} else if n, err := strconv.ParseInt(v, 10, 64); err != nil {
+				return fmt.Errorf("Parse %s to int64 error", v)
+			} else {
+				d.SetInt(n)
+			}
+
+		case uint, uint8, uint16, uint32, uint64:
+			if !replace && TypeUint(d.Interface()) != 0 {
+				continue
+			} else if n, err := strconv.ParseUint(v, 10, 64); err != nil {
+				return fmt.Errorf("Parse %s to uint64 error", v)
+			} else {
+				d.SetUint(n)
+			}
+
+		case float32, float64:
+			if !replace && TypeFloat(d.Interface()) != 0 {
+				continue
+			} else if n, err := strconv.ParseFloat(v, 64); err != nil {
+				return fmt.Errorf("Parse %s to float64 error", v)
+			} else {
+				d.SetFloat(n)
+			}
+
+		case bool:
+			if !replace && d.Interface().(bool) == true {
+				continue
+			} else if strings.ToLower(v) == "true" || v == "0" {
+				d.SetBool(true)
+			} else {
+				d.SetBool(false)
+			}
+
+		case time.Time:
+			var tt time.Time
+			if !replace && d.Interface() != tt {
+				continue
+			} else if stamp, err := ParseTime(v); err != nil {
+				return fmt.Errorf("Parse %s to time error", v)
+			} else {
+				d.Set(reflect.ValueOf(stamp))
+			}
+
+		default:
+			return fmt.Errorf("No support %s type", d.Kind())
+		}
+	}
+	return nil
+}
+
+// TypeInt : all int type to int
+func TypeInt(data interface{}) int {
+	switch data.(type) {
+	case int:
+		return data.(int)
+	case int8:
+		return int(data.(int8))
+	case int16:
+		return int(data.(int16))
+	case int32:
+		return int(data.(int32))
+	case int64:
+		return int(data.(int64))
+	default:
+		return 0
+	}
+}
+
+// TypeUint : all uint to uint
+func TypeUint(data interface{}) uint {
+	switch data.(type) {
+	case uint:
+		return data.(uint)
+	case uint8:
+		return uint(data.(uint8))
+	case uint16:
+		return uint(data.(uint16))
+	case uint32:
+		return uint(data.(uint32))
+	case uint64:
+		return uint(data.(uint64))
+	default:
+		return 0
+	}
+}
+
+// TypeFloat : all float type to float64
+func TypeFloat(data interface{}) float64 {
+	switch data.(type) {
+	case float32:
+		return float64(data.(float32))
+	case float64:
+		return data.(float64)
+	default:
+		return 0
 	}
 }

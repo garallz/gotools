@@ -1,4 +1,4 @@
-package database
+package table
 
 import (
 	"database/sql"
@@ -86,7 +86,8 @@ func setSqlNull(value reflect.Value, data interface{}) error {
 		if d, ok := data.(*sql.NullTime); ok && d.Valid {
 			value.Set(reflect.ValueOf(d.Time))
 		} else {
-			value.Set(reflect.Value{})
+			var timestamp time.Time
+			value.Set(reflect.ValueOf(timestamp))
 		}
 	default:
 		return ErrNotSureType
@@ -101,7 +102,20 @@ func (d *TableStruct) QueryArrayWithNull(where string) ([]interface{}, error) {
 	var values []interface{}
 	for k, v := range d.elem {
 		rows = append(rows, k)
-		values = append(values, v.Addr().Interface())
+		switch v.Interface().(type) {
+		case bool:
+			values = append(values, &sql.NullBool{})
+		case string:
+			values = append(values, &sql.NullString{})
+		case int8, uint8, int16, uint16, int32, uint32, int, uint, int64, uint64:
+			values = append(values, &sql.NullInt64{})
+		case float32, float64:
+			values = append(values, &sql.NullFloat64{})
+		case time.Time:
+			values = append(values, &sql.NullTime{})
+		default:
+			return nil, ErrNotSureType
+		}
 	}
 
 	sqlstr := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
@@ -118,6 +132,12 @@ func (d *TableStruct) QueryArrayWithNull(where string) ([]interface{}, error) {
 		if err = res.Scan(values...); err != nil {
 			return nil, err
 		} else {
+			for i, k := range rows {
+				v := d.elem[k]
+				if err = setSqlNull(v, values[i]); err != nil {
+					return nil, err
+				}
+			}
 			result = append(result, reflect.ValueOf(d.data).Elem().Interface())
 		}
 	}

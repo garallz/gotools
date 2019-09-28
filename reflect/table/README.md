@@ -13,7 +13,11 @@ Function: [Query, Insert, Update]
 
 ## Only for Go1.13 Version and above
 
-(因使用了Go1.13的部分功能，所以需要使用Go1.13及以上的版本))
+(因使用了Go1.13的部分功能，所以需要使用Go1.13及以上的版本, 包括第三方包的版本问题))
+```go
+func QueryWithNull()
+func QueryArrayWithNull()
+```
 
 ## Example:
 

@@ -1,4 +1,4 @@
-package database
+package table
 
 import (
 	"fmt"
@@ -168,6 +168,9 @@ func (d *TableStruct) filterSet(rows []string) ([]string, []interface{}) {
 		}
 	} else {
 		for key, value := range d.elem {
+			if d.index != "" && key == d.index {
+				continue
+			}
 			keys = append(keys, d.set(key, num))
 			values = append(values, value.Interface())
 			num++
