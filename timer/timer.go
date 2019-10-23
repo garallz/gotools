@@ -1,106 +1,70 @@
-package logfile
+package timer
 
 import (
 	"errors"
-	"sort"
 	"strconv"
-	"sync"
 	"time"
 )
 
-var timerFunc []*TimerFunc
-var accuracy int64 = 100 * 1000 * 1000 // 精确度 ms
-var timerLock = new(sync.Mutex)
-
-func init() {
-
-	go func() {
-		for {
-			var temp int64 = time.Now().UnixNano()
-			var next int64
-
-			timerLock.Lock()
-
-			for _, f := range timerFunc {
-
-				if f.next < temp {
-					go f.function()
-
-					if f.fixed {
-						f.next += f.interval
-					} else {
-						// 	f.next = time.Unix(0, next).AddDate(0, int(f.interval), 0).UnixNano()
-					}
-
-					if f.next < next || next == 0 {
-						next = f.next
-					}
-
-					if f.times == 0 {
-						go deleteFunc()
-						continue
-					} else if f.times > 0 {
-						f.times--
-					}
-				}
-			}
-			timerLock.Unlock()
-
-			if (next - temp) <= accuracy {
-				time.Sleep(time.Nanosecond * time.Duration(accuracy))
-			} else {
-				time.Sleep(time.Nanosecond * time.Duration(next-time.Now().UnixNano()))
-			}
-		}
-	}()
-}
-
+// NewTimer ：make new ticker function
 // 时间定时 stamp: 15:04:05; 04:05; 05;
 // 时间间隔 stamp: s-m-h-d:  10s; 30m; 60h; 7d;
 // 执行次数 times: run times (defalut -1:forever)
 // 立即执行 run:   defalut: running next time
-func NewTimer(stamp string, times int, run bool, function func()) error {
+func NewTimer(stamp string, times int, run bool, msg interface{}, function func(interface{})) error {
 	if next, interval, err := checkTime(stamp); err != nil {
 		return err
 	} else {
-		if times == 0 {
+		if times < 0 {
 			times = -1
+		} else if times == 0 {
+			return errors.New("ticker run times can not be zero")
 		}
 
 		if run {
-			if next > time.Now().UnixNano() {
-				next -= interval
-			}
-		} else {
-			if next < time.Now().UnixNano() {
-				next += interval
+			switch times {
+			case 1:
+				function(msg)
+				return nil
+			case -1:
+				function(msg)
+			default:
+				times--
+				function(msg)
 			}
 		}
 
-		// and function and sort functions by interval
-		timerLock.Lock()
-
-		timerFunc = append(timerFunc, &TimerFunc{
+		putInto(&TimerFunc{
+			function: function,
+			times:    times,
 			next:     next,
 			interval: interval,
-			times:    times,
-			fixed:    true,
-			function: function,
+			msg:      msg,
 		})
-		sort.Sort(ByInterval{timerFunc})
-
-		timerLock.Unlock()
 	}
 	return nil
 }
 
-// default accuracy to run, min 10ms
-func SetAccuracy(ms uint) error {
-	if ms < 10 {
-		return errors.New("Accuracy min is 10ms")
+// NewRunDuration : Make a new function run just only one times
+func NewRunDuration(duration time.Duration, msg interface{}, function func(interface{})) {
+	var data = &TimerFunc{
+		next:     time.Now().Add(duration).UnixNano(),
+		times:    1,
+		function: function,
+		msg:      msg,
 	}
-	accuracy = int64(ms * 1000 * 1000)
-	return nil
+	putInto(data)
+}
+
+// NewRunTime : Make a new function run time
+func NewRunTime(timestamp time.Time, msg interface{}, function func(interface{})) {
+	var data = &TimerFunc{
+		next:     timestamp.UnixNano(),
+		times:    1,
+		function: function,
+		msg:      msg,
+	}
+	putInto(data)
 }
 
 // check timerstamp value
@@ -160,16 +124,4 @@ func checkTime(stamp string) (int64, int64, error) {
 	}
 
 	return next, interval, err
-}
-
-// delete function by times eq 0
-func deleteFunc() {
-	timerLock.Lock()
-	for i, f := range timerFunc {
-		if f.next == 0 {
-			timerFunc = append(timerFunc[:i], timerFunc[i+1:]...)
-		}
-		return
-	}
-	timerLock.Unlock()
 }

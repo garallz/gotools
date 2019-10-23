@@ -40,6 +40,9 @@ func NewTable(data interface{}, table, tag string, db *sql.DB) *TableStruct {
 	if table == "" {
 		panic("Table name Can't be Null")
 	}
+	if db == nil {
+		panic("sql.DB is null")
+	}
 
 	if reflect.TypeOf(data).Kind() != reflect.Ptr {
 		panic("This not ptr interface")

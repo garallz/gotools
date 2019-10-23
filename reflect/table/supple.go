@@ -124,19 +124,16 @@ func TypeBool(data interface{}) (bool, bool) {
 		str := strings.ToLower(data.(string))
 		if str == "true" || str == "0" {
 			return true, true
-		} else {
-			return false, true
 		}
+		return false, true
 	}
 
 	if num, ok := TypeIntAndUint(data); ok {
 		if num == 0 {
 			return true, true
-		} else {
-			return false, true
 		}
+		return false, true
 	}
-
 	return false, false
 }
 
@@ -206,9 +203,8 @@ func TypeTime(data interface{}) (time.Time, bool) {
 	case int64:
 		if data.(int64)/1e12 > 0 {
 			return time.Unix(0, data.(int64)), true
-		} else {
-			return time.Unix(data.(int64), 0), true
 		}
+		return time.Unix(data.(int64), 0), true
 	}
 	return time.Now(), false
 }
@@ -230,9 +226,8 @@ func ParseTime(str string) (time.Time, error) {
 	if num, err := strconv.ParseInt(str, 10, 64); err == nil {
 		if num/1e12 > 0 {
 			return time.Unix(0, num), nil
-		} else {
-			return time.Unix(num, 0), nil
 		}
+		return time.Unix(num, 0), nil
 	}
 
 	return time.Now(), err
@@ -287,24 +282,18 @@ func SuppleWithMap(data interface{}, rows map[string]string, replace bool, name 
 		rt = rt.Elem()
 	}
 
-	var fileds = make(map[string]int)
+	var fileds = make(map[string]reflect.Value)
 	for i := 0; i < rt.NumField(); i++ {
 		key := rt.Field(i).Tag.Get(name)
-		if key != "" {
-			fileds[key] = i
+		if key != "" && key != "-" {
+			fileds[key] = rv.Field(i)
 		}
 	}
 
-	var d reflect.Value
-	for k, v := range rows {
-		if v == "" {
+	for k, d := range fileds {
+		v, ok := rows[k]
+		if !ok {
 			continue
-		}
-
-		if i, ok := fileds[k]; !ok {
-			continue
-		} else {
-			d = rv.Field(i)
 		}
 
 		switch d.Interface().(type) {

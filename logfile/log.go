@@ -100,20 +100,19 @@ func (l *LogData) upFile() {
 
 // put log data and level in buffer.
 func (l *LogData) put(level string, args []interface{}) error {
-	fmt.Println(args)
-	message := time.Now().Format(l.format) + level +fmt.Sprint(args...)
+	message := time.Now().Format(l.format) + level + fmt.Sprint(args...)
 	return l.putByte([]byte(message + "\n"))
 }
 
 // put log data and level in buffer by string.
 func (l *LogData) putf(messages string, args []interface{}) error {
-	return l.putByte([]byte(fmt.Sprintf(messages, args...)+"\n"))
+	return l.putByte([]byte(fmt.Sprintf(messages, args...) + "\n"))
 }
 
 func (l *LogData) putPanic(bts []byte) {
 	if l.cache {
 		l.buf = append(l.buf, bts...)
-			l.file.Write(l.buf)
+		l.file.Write(l.buf)
 	} else {
 		l.file.Write(bts)
 	}
