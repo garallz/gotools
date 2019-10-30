@@ -1,6 +1,10 @@
 package timer
 
-const TimeFormatString = "2006-01-02 15:04:05"
+// parse time format
+const (
+	TimeFormatString = "2006-01-02 15:04:05"
+	TimeFormatLength = 19
+)
 
 // time unit
 const (

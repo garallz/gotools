@@ -7,10 +7,10 @@ import (
 )
 
 // NewTimer ：make new ticker function
-// 时间定时 stamp: 15:04:05; 04:05; 05;
-// 时间间隔 stamp: s-m-h-d:  10s; 30m; 60h; 7d;
-// 执行次数 times: run times (defalut -1:forever)
-// 立即执行 run:   defalut: running next time
+// stamp -> Time timing: 15:04:05; 04:05; 05;
+// stamp -> time interval: s-m-h-d:  10s; 30m; 60h; 7d;
+// times: 	run times [-1:forever, 0:return not run]
+// run:  	defalut: running next time, if true run one times now.
 func NewTimer(stamp string, times int, run bool, msg interface{}, function func(interface{})) error {
 	if next, interval, err := checkTime(stamp); err != nil {
 		return err
@@ -45,18 +45,26 @@ func NewTimer(stamp string, times int, run bool, msg interface{}, function func(
 	return nil
 }
 
-// NewRunDuration : Make a new function run just only one times
-func NewRunDuration(duration time.Duration, msg interface{}, function func(interface{})) {
+// NewRunDuration : Make a new function run
+// times: [-1 meas forever], [0 meas not run]
+func NewRunDuration(duration time.Duration, times int, msg interface{}, function func(interface{})) {
+	if times == 0 {
+		return
+	} else if times < 0 {
+		times = -1
+	}
+
 	var data = &TimerFunc{
 		next:     time.Now().Add(duration).UnixNano(),
-		times:    1,
+		times:    times,
+		interval: int64(duration),
 		function: function,
 		msg:      msg,
 	}
 	putInto(data)
 }
 
-// NewRunTime : Make a new function run time
+// NewRunTime : Make a new function run time just one times
 func NewRunTime(timestamp time.Time, msg interface{}, function func(interface{})) {
 	var data = &TimerFunc{
 		next:     timestamp.UnixNano(),
@@ -69,12 +77,11 @@ func NewRunTime(timestamp time.Time, msg interface{}, function func(interface{})
 
 // check timerstamp value
 func checkTime(stamp string) (int64, int64, error) {
-	var (
-		err      error
-		temp     int
-		next     int64 = time.Now().UnixNano()
-		interval int64
-	)
+	var err error
+	var temp int
+	var interval int64
+	var now = time.Now()
+	var next = now.Unix()
 
 	switch stamp[len(stamp)-1:] {
 	case "s", "S":
@@ -94,25 +101,26 @@ func checkTime(stamp string) (int64, int64, error) {
 		interval = int64(temp * DayTimeUnit)
 
 	case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		// Solve the time difference of time zone
+		timeString := now.Format(TimeFormatString)
+		ts, _ := time.Parse(TimeFormatString, timeString)
+		tc := now.Unix() - ts.Unix()
 
-		timeString := time.Now().Format(TimeFormatString)
-		timeLen := len(timeString)
 		var t time.Time
-
 		switch len(stamp) {
 		case 2: // second
-			t, err = time.Parse(TimeFormatString, timeString[:timeLen-2]+stamp)
-			next = t.UnixNano()
+			t, err = time.Parse(TimeFormatString, timeString[:17]+stamp)
+			next = t.Unix() + tc
 			interval = MinuteTimeUnit
 
 		case 5: // min
-			t, err = time.Parse(TimeFormatString, timeString[:timeLen-5]+stamp)
-			next = t.UnixNano()
+			t, err = time.Parse(TimeFormatString, timeString[:14]+stamp)
+			next = t.Unix() + tc
 			interval = HourTimeUnit
 
 		case 8: // hour
-			t, err = time.Parse(TimeFormatString, timeString[:timeLen-8]+stamp)
-			next = t.UnixNano()
+			t, err = time.Parse(TimeFormatString, timeString[:11]+stamp)
+			next = t.Unix() + tc
 			interval = DayTimeUnit
 
 		default:
@@ -123,5 +131,8 @@ func checkTime(stamp string) (int64, int64, error) {
 		err = errors.New("Can't parst stamp value, please check it")
 	}
 
-	return next, interval, err
+	if err == nil && next <= now.Unix() {
+		next += interval / SecondTimeUnit
+	}
+	return next * SecondTimeUnit, interval, err
 }

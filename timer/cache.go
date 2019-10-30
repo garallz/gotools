@@ -9,29 +9,19 @@ import (
 
 const basicNumber int64 = 100 * MilliTimeUnit // 100ms
 
-var (
-	firstCut  int64 = 5 * basicNumber
-	secondCut int64 = 25 * basicNumber
-	thirdCut  int64 = 250 * basicNumber
-)
+// Container : save cache data containers
+type Container struct {
+	cache []*TimerFunc
+	count int32
+	cutNo int64
+	lock  sync.Mutex
+}
 
 var (
-	cacheFirst  = make([]*TimerFunc, 0)
-	cacheSecond = make([]*TimerFunc, 0)
-	cacheThird  = make([]*TimerFunc, 0)
-	bufferCache = make([]*TimerFunc, 0)
-)
-
-var (
-	secodeCount int32 = 0
-	thirdCount  int32 = 0
-)
-
-var (
-	firstLock  sync.Mutex
-	secondLock sync.Mutex
-	thirdLock  sync.Mutex
-	bufferLock sync.Mutex
+	buffer = &Container{}
+	first  = &Container{cutNo: 5 * basicNumber}
+	second = &Container{cutNo: 25 * basicNumber}
+	third  = &Container{cutNo: 250 * basicNumber}
 )
 
 var level int64 = 5
@@ -51,10 +41,10 @@ func InitTicker(interval int64) {
 			select {
 			case <-ticker.C:
 
-				if count := atomic.AddInt32(&secodeCount, 1); count >= 4 {
+				if count := atomic.AddInt32(&second.count, 1); count >= 4 {
 					// run cache second check
 					go checkSecondCache()
-					atomic.SwapInt32(&secodeCount, 0)
+					atomic.SwapInt32(&second.count, 0)
 				}
 
 				if runStatus {
@@ -62,32 +52,32 @@ func InitTicker(interval int64) {
 				}
 				runStatus = true
 
-				firstLock.Lock()
+				first.lock.Lock()
 
 				// append buffer arrge data
-				bufferLock.Lock()
-				cacheFirst = append(cacheFirst, bufferCache...)
-				bufferCache = make([]*TimerFunc, 0)
-				bufferLock.Unlock()
+				buffer.lock.Lock()
+				first.cache = append(first.cache, buffer.cache...)
+				buffer.cache = make([]*TimerFunc, 0)
+				buffer.lock.Unlock()
+
 				// sort array data
-				sort.Sort(ByNext(cacheFirst))
+				sort.Sort(ByNext(first.cache))
 
 				now := time.Now().UnixNano()
-				length := len(cacheFirst) - 1
-				for i, row := range cacheFirst {
+				length := len(first.cache) - 1
+				for i, row := range first.cache {
 					if row.next <= now {
 						go run(row)
 					} else {
-						cacheFirst = cacheFirst[i:]
+						first.cache = first.cache[i:]
 						break
 					}
 					if i == length {
-						cacheFirst = make([]*TimerFunc, 0)
+						first.cache = make([]*TimerFunc, 0)
 					}
 				}
+				first.lock.Unlock()
 				runStatus = false
-
-				firstLock.Unlock()
 			}
 		}
 	}()
@@ -114,70 +104,83 @@ func run(data *TimerFunc) {
 func putInto(data *TimerFunc) {
 	now := time.Now().UnixNano()
 
-	if data.next <= (now + firstCut*level) {
-		bufferLock.Lock()
-		bufferCache = append(bufferCache, data)
-		bufferLock.Unlock()
-	} else if data.next > (now + thirdCut*level) {
-		secondLock.Lock()
-		cacheThird = append(cacheThird, data)
-		secondLock.Unlock()
+	if data.next <= (now + first.cutNo*level) {
+		buffer.lock.Lock()
+		buffer.cache = append(buffer.cache, data)
+		buffer.lock.Unlock()
+	} else if data.next > (now + second.cutNo*level) {
+		third.lock.Lock()
+		third.cache = append(third.cache, data)
+		third.lock.Unlock()
 	} else {
-		thirdLock.Lock()
-		cacheSecond = append(cacheSecond, data)
-		thirdLock.Unlock()
+		second.lock.Lock()
+		second.cache = append(second.cache, data)
+		second.lock.Unlock()
 	}
 }
 
 // When insert new data to sort
 func checkSecondCache() {
-	var next = time.Now().UnixNano() + firstCut*level
-	// Sort arrge
-	sort.Sort(ByNext(cacheSecond))
-
-	length := len(cacheSecond) - 1
-	for i, row := range cacheSecond {
-		if row.next < next && i < length {
-			continue
-		}
-
-		bufferLock.Lock()
-		bufferCache = append(bufferCache, cacheSecond[:i+1]...)
-		bufferLock.Unlock()
-
-		secondLock.Lock()
-		cacheSecond = cacheSecond[i+1:]
-		secondLock.Unlock()
-		return
-	}
-
-	if count := atomic.AddInt32(&thirdCount, 1); count >= 10 {
+	if count := atomic.AddInt32(&third.count, 1); count >= 5 {
 		// run cache third check
 		go checkThirdCache()
-		atomic.SwapInt32(&thirdCount, 0)
+		atomic.SwapInt32(&third.count, 0)
+	}
+
+	var next = time.Now().UnixNano() + first.cutNo*level
+	second.lock.Lock()
+	defer second.lock.Unlock()
+	// Sort arrge
+	sort.Sort(ByNext(second.cache))
+
+	if length := len(second.cache); length == 0 {
+		return
+	} else if second.cache[0].next > next {
+		return
+	} else if second.cache[length-1].next < next {
+		buffer.lock.Lock()
+		buffer.cache = append(buffer.cache, second.cache...)
+		buffer.lock.Unlock()
+		second.cache = make([]*TimerFunc, 0)
+	} else {
+		for i, row := range second.cache {
+			if row.next > next {
+				buffer.lock.Lock()
+				buffer.cache = append(buffer.cache, second.cache[:i]...)
+				buffer.lock.Unlock()
+				second.cache = second.cache[i:]
+				break
+			}
+		}
 	}
 }
 
 // When insert new data to sort
 func checkThirdCache() {
-	var next = time.Now().UnixNano() + secondCut*level
+	var next = time.Now().UnixNano() + second.cutNo*level
 	// Sort arrge
-	sort.Sort(ByNext(cacheThird))
+	third.lock.Lock()
+	defer third.lock.Unlock()
+	sort.Sort(ByNext(third.cache))
 
-	length := len(cacheThird) - 1
-	for i, row := range cacheThird {
-		if row.next < next && i < length {
-			continue
-		}
-
-		secondLock.Lock()
-		cacheSecond = append(cacheSecond, cacheThird[:i+1]...)
-		secondLock.Unlock()
-
-		thirdLock.Lock()
-		cacheThird = cacheThird[i+1:]
-		thirdLock.Unlock()
+	if length := len(third.cache); length == 0 {
 		return
-
+	} else if third.cache[0].next > next {
+		return
+	} else if third.cache[length-1].next < next {
+		second.lock.Lock()
+		second.cache = append(second.cache, third.cache...)
+		second.lock.Unlock()
+		third.cache = make([]*TimerFunc, 0)
+	} else {
+		for i, row := range third.cache {
+			if row.next > next {
+				second.lock.Lock()
+				second.cache = append(second.cache, third.cache[:i]...)
+				second.lock.Unlock()
+				third.cache = third.cache[i:]
+				break
+			}
+		}
 	}
 }
