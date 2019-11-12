@@ -1,11 +1,14 @@
 package logfile
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"time"
 )
+
+var LineByte = []byte("\n")
 
 // check struct data and supplement.
 func (l *LogStruct) checkStruct() *LogData {
@@ -15,7 +18,9 @@ func (l *LogStruct) checkStruct() *LogData {
 		name:   "log",
 		time:   TimeDay,
 		level:  LevelError,
+		path:   "./",
 		format: "2006-01-02 15:04:05",
+		types:  DataTypeJson,
 	}
 
 	if l == nil {
@@ -45,11 +50,10 @@ func (l *LogStruct) checkStruct() *LogData {
 			d.dir = true
 		}
 		if l.FilePath != "" {
-			bte := l.FilePath[len(l.FilePath)-1:]
-			if bte != "/" {
-				l.FilePath += "/"
-			}
 			d.path = l.FilePath
+		}
+		if l.DataType == DataTypeByte {
+			d.types = DataTypeByte
 		}
 		return d
 	}
@@ -58,11 +62,11 @@ func (l *LogStruct) checkStruct() *LogData {
 // open file and put in struct with *os.file
 func (l *LogData) open() {
 	var err error
-	name := l.path + l.name + "." + time.Now().Format(fmt.Sprint(l.time))
+	name := filepath.Join(l.path, l.name+"."+time.Now().Format(fmt.Sprint(l.time)))
 
 	if l.dir {
 		d := l.createDir()
-		name = l.path + d + l.name + "." + time.Now().Format(fmt.Sprint(l.time))
+		name = filepath.Join(l.path, d, l.name+"."+time.Now().Format(fmt.Sprint(l.time)))
 	}
 
 	l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
@@ -98,15 +102,41 @@ func (l *LogData) upFile() {
 	}
 }
 
+// JsonData : DataType is json to wirte
+type JsonData struct {
+	Time  string `json:"time"`
+	Level string `json:"level,omitempty"`
+	Body  string `json:"body"`
+}
+
 // put log data and level in buffer.
 func (l *LogData) put(level string, args []interface{}) error {
-	message := time.Now().Format(l.format) + level + fmt.Sprint(args...)
-	return l.putByte([]byte(message + "\n"))
+	if l.types == DataTypeJson {
+		bts, _ := json.Marshal(&JsonData{
+			Time:  time.Now().Format(l.format),
+			Level: level,
+			Body:  fmt.Sprint(args...),
+		})
+		return l.putByte(append(bts, LineByte...))
+	} else {
+		message := fmt.Sprintf("%s\t%s\t%s\n", time.Now().Format(l.format), level, fmt.Sprint(args...))
+		return l.putByte([]byte(message + "\n"))
+	}
 }
 
 // put log data and level in buffer by string.
-func (l *LogData) putf(messages string, args []interface{}) error {
-	return l.putByte([]byte(fmt.Sprintf(messages, args...) + "\n"))
+func (l *LogData) putf(level string, msg string) error {
+	if l.types == DataTypeJson {
+		bts, _ := json.Marshal(&JsonData{
+			Time:  time.Now().Format(l.format),
+			Level: level,
+			Body:  msg,
+		})
+		return l.putByte(append(bts, LineByte...))
+	} else {
+		msg = fmt.Sprintf("%s\t%s\t%s\n", time.Now().Format(l.format), level, msg)
+		return l.putByte([]byte(msg))
+	}
 }
 
 func (l *LogData) putPanic(bts []byte) {
@@ -123,6 +153,7 @@ func (l *LogData) putPanic(bts []byte) {
 func (l *LogData) putByte(bts []byte) error {
 	var err error
 	// check new file create time status.
+	// TODO : make new file
 	if l.tc {
 		if err = l.check(); err != nil {
 			return err
@@ -193,9 +224,10 @@ func (l *LogData) createDir() string {
 
 // check dir exist and create.
 func (l *LogData) create(path string) {
-	if _, err := os.Stat(l.path + path); err != nil {
+	path = filepath.Join(l.path, path)
+	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			if exec.Command("sh", "-c", "mkdir "+l.path+path).Run() != nil {
+			if err := os.Mkdir(path, 0666); err != nil {
 				panic("Create log file dir error!")
 			}
 		}

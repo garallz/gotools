@@ -1,10 +1,11 @@
 package logfile
 
-import(
+import (
 	"encoding/json"
+	"fmt"
 )
 
-// Initialization Func.
+// LogInit : init log server.
 func LogInit(l *LogStruct) *LogData {
 	// Check struct data.
 	d := l.checkStruct()
@@ -16,102 +17,117 @@ func LogInit(l *LogStruct) *LogData {
 	return d
 }
 
-// Write log data with log level was Debug.
+// SignalKill : when program quit/kill, put log cache in file
+// If log data use cache wirte, should be use
+// Final execution of the program
+func (l *LogData) SignalKill() {
+	l.putPanic(nil)
+}
+
+// WriteDebug log data with log level was Debug.
 func (l *LogData) WriteDebug(args ...interface{}) error {
 	if l.level == LevelDebug {
-		return l.put(" DEBUG\t", args)
+		return l.put("DEBUG", args)
 	}
 	return nil
 }
 
-// Write log data with log level was Info.
+// WriteInfo log data with log level was Info.
 func (l *LogData) WriteInfo(args ...interface{}) error {
 	if l.level <= LevelInfo {
-		return l.put(" INFO\t", args)
+		return l.put("INFO", args)
 	}
 	return nil
 }
 
-// Write log data with log level was Warn.
+// WriteWarn log data with log level was Warn.
 func (l *LogData) WriteWarn(args ...interface{}) error {
 	if l.level <= LevelWarn {
-		return l.put(" WARN\t", args)
+		return l.put("WARN", args)
 	}
 	return nil
 }
 
-// Write log data with log level was Error.
+// WriteError log data with log level was Error.
 func (l *LogData) WriteError(args ...interface{}) error {
-		return l.put(" ERROR\t", args)
+	return l.put("ERROR", args)
 }
 
-// Write log data with log level was Fatal.
+// WriteFatal log data with log level was Fatal.
 func (l *LogData) WriteFatal(args ...interface{}) error {
-	return l.put(" FATAL\t", args)
+	return l.put("FATAL", args)
 }
 
+// WritePanic Write log data with log level was Fatal and panic
 func (l *LogData) WritePanic(err error, args ...interface{}) {
-	l.put(" FATAL\t", args)
+	l.put("FATAL", args)
 	// wirter log in file and close
 	l.putPanic(nil)
 	panic(err)
 }
 
-// Write log data with log level was Debug.
-func (l *LogData) WriteDebugf(messages string, args ...interface{}) error {
+// WriteDebugf log data with log level was Debug.
+func (l *LogData) WriteDebugf(format string, args ...interface{}) error {
 	if l.level == LevelDebug {
-		return l.putf(" DEBUG\t"+messages, args)
+		return l.putf("DEBUG", fmt.Sprintf(format, args...))
 	}
 	return nil
 }
 
-// Write log data with log level was Info.
-func (l *LogData) WriteInfof(messages string, args ...interface{}) error {
+// WriteInfof : Write log data with log level was Info.
+func (l *LogData) WriteInfof(format string, args ...interface{}) error {
 	if l.level <= LevelInfo {
-		return l.putf(" INFO\t"+messages, args)
+		return l.putf("INFO", fmt.Sprintf(format, args...))
 	}
 	return nil
 }
 
-// Write log data with log level was Warn.
-func (l *LogData) WriteWarnf(messages string, args ...interface{}) error {
+// WriteWarnf : Write log data with log level was Warn.
+func (l *LogData) WriteWarnf(format string, args ...interface{}) error {
 	if l.level <= LevelWarn {
-		return l.putf(" WARN\t"+messages, args)
+		return l.putf("WARN", fmt.Sprintf(format, args...))
 	}
 	return nil
 }
 
-// Write log data with log level was Error.
-func (l *LogData) WriteErrorf(messages string, args ...interface{}) error {
-	return l.putf(" ERROR\t"+messages, args)
+// WriteErrorf Write log data with log level was Error.
+func (l *LogData) WriteErrorf(format string, args ...interface{}) error {
+	return l.putf("ERROR", fmt.Sprintf(format, args...))
 }
 
-// Write log data with log level was Fatal.
-func (l *LogData) WriteFatalf(messages string, args ...interface{}) error {
-	return l.putf(" FATAL\t"+messages, args)
+// WriteFatalf Write log data with log level was Fatal.
+func (l *LogData) WriteFatalf(format string, args ...interface{}) error {
+	return l.putf("FATAL", fmt.Sprintf(format, args...))
 }
 
-func (l *LogData) WritePanicf(err error, messages string, args ...interface{}) {
+// WritePanicf Write log data with log level was Fatal and panic
+func (l *LogData) WritePanicf(err error, format string, args ...interface{}) {
 	// wirter log in file and close
-	l.putf(" PANIC\t"+messages, args)
+	l.putf("PANIC", fmt.Sprintf(format, args...))
 	l.putPanic(nil)
 	panic(err)
 }
 
-// Write byte log data, not prefix.
+// SaveAndExit : if log use cache write, need save to exit
+func (l *LogData) SaveAndExit() {
+	l.putPanic(nil)
+}
+
+// WriteBytes Write byte log data, not prefix.
 func (l *LogData) WriteBytes(bts []byte) error {
 	return l.putByte(append(bts, []byte("\n")...))
 }
 
+// WriterJson : just only write json data
 func (l *LogData) WriterJson(data interface{}) error {
 	if bts, err := json.Marshal(data); err != nil {
 		return err
 	} else {
-		return l.putByte(append(bts, []byte("\n")...))
+		return l.putByte(append(bts, LineByte...))
 	}
 }
 
-// Change log error level.
+// ChangeErrLevel Change log error level.
 func (l *LogData) ChangeErrLevel(level LogLevel) {
 	l.level = level
 }

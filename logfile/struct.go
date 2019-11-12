@@ -69,4 +69,5 @@ type LogData struct {
 	stamp  int64
 	tc     bool
 	mu     sync.Mutex
+	types  DataType
 }
