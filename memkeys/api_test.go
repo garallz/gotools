@@ -16,14 +16,18 @@ func TestApi(t *testing.T) {
 	}
 
 	mem.SetWithExpire("test", "dafkjasdlfka", time.Second*2)
-	mem.SetWithExpire("test", "dafkjasdlfka", time.Second*4)
+	mem.SetWithExpire("test", "dafkjasdlfka", time.Second*2)
 	mem.SetWithExpire("one", "dafkjasdlfka", time.Second*2)
 	mem.Set("test", "dafkjasdlfka")
 	mem.Set("two", "dafkjasdlfka")
+	mem.SetWithExpire("three", "33333333333", time.Second*2)
+
+	value, ok := mem.Get("three")
+	fmt.Println(value, ok)
 
 	fmt.Println(mem.KeysNum())
 
-	value, ok := mem.get("test")
+	value, ok = mem.get("test")
 	fmt.Println(value, ok)
 
 	mem.del("test")
@@ -33,7 +37,7 @@ func TestApi(t *testing.T) {
 
 	fmt.Println(mem.memSize)
 
-	value, ok = mem.get("one")
+	value, ok = mem.get("three")
 	fmt.Println(value, ok)
 }
 

@@ -37,6 +37,7 @@ func (d *Memory) newExp() {
 // InitTicker : init timer ticker
 // base interval is 100ms, dafualt 100ms, [100ms * interval]
 func (m *Memory) initExpire() {
+	var times int32
 	go func(m *Memory) {
 		ticker := time.NewTicker(time.Nanosecond * time.Duration(basicNumber*m.expCache.interval))
 
@@ -50,8 +51,6 @@ func (m *Memory) initExpire() {
 					// run cache second check
 					go d.upSecondCache()
 					atomic.SwapInt32(&d.second.count, 0)
-					// check memory size
-					go m.checkCacheSize()
 				}
 
 				d.first.lock.Lock()
@@ -81,6 +80,12 @@ func (m *Memory) initExpire() {
 					}
 				}
 				d.first.lock.Unlock()
+
+				// check memory size
+				if count := atomic.AddInt32(&times, 1); count >= 100 {
+					go m.checkCacheSize()
+					atomic.SwapInt32(&times, 0)
+				}
 			}
 		}
 	}(m)

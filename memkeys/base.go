@@ -44,6 +44,9 @@ type Memory struct {
 
 	// keys number
 	keys int32
+
+	// 内存超出预警程序
+	function func()
 }
 
 type MemoryData struct {
@@ -224,6 +227,6 @@ func pagination(key string, pages int) int {
 func (m *Memory) checkCacheSize() {
 	m.memSize = int64(unsafe.Sizeof(*m))
 	if m.maxMem < m.memSize {
-		// TODO
+		m.function()
 	}
 }
