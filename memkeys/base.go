@@ -150,7 +150,7 @@ func (m *Memory) get(key string) (interface{}, bool) {
 	mem.lock.RUnlock()
 
 	if ok {
-		return result, true
+		return result.value, true
 	}
 	return nil, false
 }
