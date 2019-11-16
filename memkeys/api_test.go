@@ -11,8 +11,6 @@ func TestApi(t *testing.T) {
 	mem, err := NewCache("2MB", 2)
 	if err != nil {
 		t.Error(err)
-	} else {
-		fmt.Println(*mem)
 	}
 
 	mem.SetWithExpire("test", "dafkjasdlfka", time.Second*2)
@@ -27,17 +25,25 @@ func TestApi(t *testing.T) {
 
 	fmt.Println(mem.KeysNum())
 
-	value, ok = mem.get("test")
+	value, ok = mem.Get("test")
 	fmt.Println(value, ok)
 
-	mem.del("test")
+	mem.Del("test")
 	fmt.Println(mem.KeysNum())
+
+	fmt.Println(mem.MemorySize())
 
 	time.Sleep(time.Second * 3)
 
-	fmt.Println(mem.memSize)
+	value, ok = mem.Get("three")
+	fmt.Println(value, ok)
+}
 
-	value, ok = mem.get("three")
+func TestGlobal(t *testing.T) {
+	InitCache("2MB", 2)
+
+	SetWithExpire("test", "test global", time.Second*2)
+	value, ok := Get("test")
 	fmt.Println(value, ok)
 }
 

@@ -25,9 +25,6 @@ type Memory struct {
 	// max key-value save bytes
 	maxMem int64
 
-	// use memory size
-	memSize int64
-
 	// not page to store key-values
 	oneCache *MemoryData
 	// all key-values store
@@ -216,17 +213,19 @@ func (m *Memory) keysNum() int64 {
 	return int64(m.keys)
 }
 
+func (m *Memory) memSize() int64 {
+	return int64(unsafe.Sizeof(*m))
+}
+
 // key not be null
 func pagination(key string, pages int) int {
 	h := fnv.New32a()
 	h.Write([]byte(key))
-	h.Sum32()
 	return int(h.Sum32()) & pages
 }
 
 func (m *Memory) checkCacheSize() {
-	m.memSize = int64(unsafe.Sizeof(*m))
-	if m.maxMem < m.memSize {
+	if m.maxMem < m.memSize() {
 		m.function()
 	}
 }
