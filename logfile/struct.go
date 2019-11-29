@@ -1,6 +1,7 @@
 package logfile
 
 import (
+	"bytes"
 	"os"
 	"sync"
 )
@@ -64,10 +65,10 @@ type LogData struct {
 	level  LogLevel
 	time   LogTime
 	dir    bool
-	buf    []byte
+	buf    *bytes.Buffer
 	file   *os.File
 	stamp  int64
-	tc     bool
 	mu     sync.Mutex
 	types  DataType
+	chann  chan string
 }

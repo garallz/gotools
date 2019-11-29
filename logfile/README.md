@@ -41,3 +41,5 @@ type LogStruct struct {
         Dir bool
 }
 ```
+
+### Use Panic interfase will make log file close

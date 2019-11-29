@@ -8,37 +8,45 @@ import (
 
 func TestLogJustLogInit(t *testing.T) {
 	l := LogInit(&LogStruct{
-		Cache: false,
+		Cache:    false,
+		FileTime: TimeMinute,
 	})
 
-	err := l.WriteError("message")
-	if err != nil {
-		t.Error(err)
+	for i := 1; i < 1000; i++ {
+		l.WriteError("<xml>123</xml>")
+		time.Sleep(time.Millisecond * 1000)
 	}
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
+	time.Sleep(time.Second * 300)
 }
 
-// func TestDirCreate(t *testing.T) {
-// 	l := LogInit(&LogStruct{
-// 		FileTime: TimeHour,
-// 		FilePath: "data",
-// 		Dir:      true,
-// 	})
+/*
+func TestDirCreate(t *testing.T) {
+	l := LogInit(&LogStruct{
+		FileTime: TimeHour,
+		FilePath: "data",
+		Dir:      true,
+	})
 
-// 	l.WriteError("message")
-// }
+	l.WriteError("message")
+}
 
-// func TestFileCreate(t *testing.T) {
-// 	l := LogInit(&LogStruct{
-// 		FileName:   "log.data",
-// 		TimeFormat: "15:04:05",
-// 		FileTime:   TimeMinute,
-// 	})
+func TestFileCreate(t *testing.T) {
+	l := LogInit(&LogStruct{
+		FileName:   "log.data",
+		TimeFormat: "15:04:05",
+		FileTime:   TimeMinute,
+	})
 
-// 	for i := 0; i <= 65; i++ {
-// 		l.WriteError(i)
-// 		time.Sleep(time.Second)
-// 	}
-// }
+	for i := 0; i <= 65; i++ {
+		l.WriteError(i)
+		time.Sleep(time.Second)
+	}
+}
+*/
 
 func TestLogLevel(t *testing.T) {
 	l := LogInit(&LogStruct{

@@ -3,16 +3,19 @@ package logfile
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // LogInit : init log server.
 func LogInit(l *LogStruct) *LogData {
 	// Check struct data.
 	d := l.checkStruct()
+	// channel to write log data
+	go d.init()
 	// Open file to write and init cache.
 	d.open()
-	// sleep time to make new file open.
-	go d.upFile()
+	// Init file time split
+	d.initStamp()
 
 	return d
 }
@@ -21,7 +24,7 @@ func LogInit(l *LogStruct) *LogData {
 // If log data use cache wirte, should be use
 // Final execution of the program
 func (l *LogData) SignalKill() {
-	l.putPanic(nil)
+	l.exit()
 }
 
 // WriteDebug log data with log level was Debug.
@@ -62,8 +65,7 @@ func (l *LogData) WriteFatal(args ...interface{}) error {
 func (l *LogData) WritePanic(err error, args ...interface{}) {
 	l.put("FATAL", args)
 	// wirter log in file and close
-	l.putPanic(nil)
-	panic(err)
+	l.exit()
 }
 
 // WriteDebugf log data with log level was Debug.
@@ -104,18 +106,17 @@ func (l *LogData) WriteFatalf(format string, args ...interface{}) error {
 func (l *LogData) WritePanicf(err error, format string, args ...interface{}) {
 	// wirter log in file and close
 	l.putf("PANIC", fmt.Sprintf(format, args...))
-	l.putPanic(nil)
-	panic(err)
+	l.exit()
 }
 
 // SaveAndExit : if log use cache write, need save to exit
 func (l *LogData) SaveAndExit() {
-	l.putPanic(nil)
+	l.exit()
 }
 
 // WriteBytes Write byte log data, not prefix.
 func (l *LogData) WriteBytes(bts []byte) error {
-	return l.putByte(append(bts, []byte("\n")...))
+	return l.putByte(time.Now(), bts)
 }
 
 // WriterJson : just only write json data
@@ -123,7 +124,7 @@ func (l *LogData) WriterJson(data interface{}) error {
 	if bts, err := json.Marshal(data); err != nil {
 		return err
 	} else {
-		return l.putByte(append(bts, LineByte...))
+		return l.putByte(time.Now(), bts)
 	}
 }
 

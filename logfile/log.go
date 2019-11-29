@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
-
-var LineByte = []byte("\n")
 
 // check struct data and supplement.
 func (l *LogStruct) checkStruct() *LogData {
@@ -21,6 +20,7 @@ func (l *LogStruct) checkStruct() *LogData {
 		path:   "./",
 		format: "2006-01-02 15:04:05",
 		types:  DataTypeJson,
+		chann:  make(chan string),
 	}
 
 	if l == nil {
@@ -44,7 +44,7 @@ func (l *LogStruct) checkStruct() *LogData {
 			if l.CacheSize != 0 {
 				d.size = l.CacheSize
 			}
-			d.buf = d.buf[:0]
+			d.buf.Reset()
 		}
 		if l.Dir {
 			d.dir = true
@@ -57,6 +57,18 @@ func (l *LogStruct) checkStruct() *LogData {
 		}
 		return d
 	}
+}
+
+// time utc
+func (l *LogData) initStamp() {
+	now := time.Now()
+	ps, _ := time.Parse("2006-01-02 15:04:05", now.Format("2006-01-02 15:04:05"))
+	is := ps.Unix() - now.Unix()
+
+	nowStr := now.Format(string(l.time))
+	ts, _ := time.Parse(string(l.time), nowStr)
+	l.stamp = ts.Unix() - is
+	l.upStamp()
 }
 
 // open file and put in struct with *os.file
@@ -75,30 +87,24 @@ func (l *LogData) open() {
 	}
 }
 
-// sleep time to make new file open.
-func (l *LogData) upFile() {
-	var last string
-	var format = fmt.Sprint(l.time)
+const (
+	TimeUnitMinute = 1 * 60
+	TimeUnitHour   = 60 * TimeUnitMinute
+	TimeUnitDay    = 24 * TimeUnitHour
+)
 
+// sleep time to make new file open.
+func (l *LogData) upStamp() {
 	switch l.time {
 	case TimeMonth:
-		last = time.Now().UTC().AddDate(0, 1, 0).Format(format)
+		ts := time.Unix(l.stamp, 0)
+		l.stamp = ts.AddDate(0, 1, 0).Unix()
 	case TimeDay:
-		last = time.Now().UTC().Add(time.Hour * 24).Format(format)
+		l.stamp += TimeUnitDay
 	case TimeHour:
-		last = time.Now().UTC().Add(time.Hour * 1).Format(format)
+		l.stamp += TimeUnitHour
 	case TimeMinute:
-		last = time.Now().UTC().Add(time.Minute).Format(format)
-	}
-
-	if stamp, err := time.Parse(format, last); err != nil {
-		panic("Time parse error: " + err.Error())
-	} else {
-		l.stamp = stamp.UTC().Unix()
-		if sleep := stamp.Sub(time.Now().UTC()).Seconds(); sleep > 5 {
-			time.Sleep(time.Second * time.Duration(sleep-5))
-		}
-		l.tc = true
+		l.stamp += TimeUnitMinute
 	}
 }
 
@@ -111,87 +117,126 @@ type JsonData struct {
 
 // put log data and level in buffer.
 func (l *LogData) put(level string, args []interface{}) error {
+	var now = time.Now()
 	if l.types == DataTypeJson {
 		bts, _ := json.Marshal(&JsonData{
-			Time:  time.Now().Format(l.format),
+			Time:  now.Format(l.format),
 			Level: level,
 			Body:  fmt.Sprint(args...),
 		})
-		return l.putByte(append(bts, LineByte...))
+		return l.putByte(now, bts)
 	} else {
-		message := fmt.Sprintf("%s\t%s\t%s\n", time.Now().Format(l.format), level, fmt.Sprint(args...))
-		return l.putByte([]byte(message + "\n"))
+		message := fmt.Sprintf("%s\t%s\t%s\n", now.Format(l.format), level, fmt.Sprint(args...))
+		return l.putString(now, message)
 	}
 }
 
 // put log data and level in buffer by string.
 func (l *LogData) putf(level string, msg string) error {
+	var now = time.Now()
 	if l.types == DataTypeJson {
 		bts, _ := json.Marshal(&JsonData{
-			Time:  time.Now().Format(l.format),
+			Time:  now.Format(l.format),
 			Level: level,
 			Body:  msg,
 		})
-		return l.putByte(append(bts, LineByte...))
+		return l.putByte(now, bts)
 	} else {
-		msg = fmt.Sprintf("%s\t%s\t%s\n", time.Now().Format(l.format), level, msg)
-		return l.putByte([]byte(msg))
+		msg = fmt.Sprintf("%s\t%s\t%s\n", now.Format(l.format), level, msg)
+		return l.putString(now, msg)
 	}
 }
 
-func (l *LogData) putPanic(bts []byte) {
+func (l *LogData) exit() {
 	if l.cache {
-		l.buf = append(l.buf, bts...)
-		l.file.Write(l.buf)
-	} else {
-		l.file.Write(bts)
+		l.mu.Lock()
+		l.chann <- l.buf.String()
+		l.mu.Unlock()
 	}
 	l.file.Close()
 }
 
 // put byte in cache or file.
-func (l *LogData) putByte(bts []byte) error {
-	var err error
-	// check new file create time status.
-	// TODO : make new file
-	if l.tc {
-		if err = l.check(); err != nil {
-			return err
-		}
+func (l *LogData) putByte(ts time.Time, bts []byte) error {
+	// check new file create time status
+	if err := l.check(ts.Unix()); err != nil {
+		return err
 	}
 
+	if l.cache {
+		go l.sendCache(string(bts))
+	} else {
+		go l.sendChann(string(bts))
+	}
+	return nil
+}
+
+func (l *LogData) putString(ts time.Time, str string) error {
+	// check new file create time status.
+	if err := l.check(ts.Unix()); err != nil {
+		return err
+	}
+
+	if l.cache {
+		go l.sendCache(str)
+	} else {
+		go l.sendChann(str)
+	}
+	return nil
+}
+
+// send data to write by channel
+func (l *LogData) sendCache(str string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if l.cache {
-		l.buf = append(l.buf, bts...)
-		if len(l.buf) >= l.size {
-			_, err = l.file.Write(l.buf)
-			l.buf = l.buf[:0]
-		}
-	} else {
-		_, err = l.file.Write(bts)
+	l.buf.WriteString(str + "\n")
+	if l.buf.Len() >= l.size {
+		l.chann <- l.buf.String()
+		l.buf.Reset()
 	}
-	return err
+	return
+}
+
+// send data to write by channel
+func (l *LogData) sendChann(str string) {
+	str += "\n"
+	l.chann <- str
+}
+
+// read channel to write log data
+func (l *LogData) init() {
+	for {
+		select {
+		case data := <-l.chann:
+			data = strings.Replace(data, "\\u003c", "<", -1)
+			data = strings.Replace(data, "\\u003e", ">", -1)
+			data = strings.Replace(data, "\\u0026", "&", -1)
+			l.file.WriteString(data)
+		}
+	}
 }
 
 // check new file open.
-func (l *LogData) check() error {
-	if l.stamp <= time.Now().UTC().Unix() {
+func (l *LogData) check(now int64) error {
+	if l.stamp <= now {
 		l.mu.Lock()
-		if l.cache {
-			if _, err := l.file.Write(l.buf); err != nil {
-				return err
-			}
-			l.buf = l.buf[:0]
+		if l.stamp <= now {
+			return nil
 		}
-		l.file.Close()
+		if l.cache {
+			l.chann <- l.buf.String()
+			l.buf.Reset()
+		}
+
+		go func(file *os.File) {
+			time.Sleep(time.Second * 10)
+			file.Close()
+		}(l.file)
 
 		l.open()
-		l.tc = false
+		l.upStamp()
 		l.mu.Unlock()
-
-		go l.upFile()
 	}
 	return nil
 }
