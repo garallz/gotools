@@ -1,7 +1,6 @@
 package memkeys
 
 import (
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,7 +18,6 @@ type Container struct {
 
 type ExpireCache struct {
 	interval int64
-	buffer   *Container
 	first    *Container
 	second   *Container
 	third    *Container
@@ -29,7 +27,6 @@ func (d *Memory) newExp() {
 	d.expCache = &ExpireCache{
 		third:  &Container{cutNo: 250 * basicNumber},
 		second: &Container{cutNo: 25 * basicNumber},
-		buffer: &Container{},
 		first:  &Container{cutNo: 5 * basicNumber},
 	}
 }
@@ -52,34 +49,17 @@ func (m *Memory) initExpire() {
 					go d.upSecondCache()
 					atomic.SwapInt32(&d.second.count, 0)
 				}
+				// sort array data
+				now := time.Now().UnixNano()
 
 				d.first.lock.Lock()
-
-				// append buffer arrge data
-				d.buffer.lock.Lock()
-				d.first.cache = append(d.first.cache, d.buffer.cache...)
-				d.buffer.cache = make([]*KeyValue, 0)
-				d.buffer.lock.Unlock()
-
-				// sort array data
-				sort.Sort(KVS(d.first.cache))
-
-				now := time.Now().UnixNano()
-				length := len(d.first.cache) - 1
-				for i, row := range d.first.cache {
-					if row.expire == 0 {
-						// Not To Do
-					} else if row.expire <= now {
-						m.del(row.key)
-					} else {
-						d.first.cache = d.first.cache[i:]
-						break
-					}
-					if i == length {
-						d.first.cache = make([]*KeyValue, 0)
-					}
-				}
+				rows, max := ExpireSplit(d.first.cache, now)
+				d.first.cache = max
 				d.first.lock.Unlock()
+
+				for _, row := range rows {
+					go m.del(row.key)
+				}
 
 				// check memory size
 				if count := atomic.AddInt32(&times, 1); count >= 100 {
@@ -95,9 +75,9 @@ func (d *ExpireCache) putInto(data *KeyValue) {
 	now := time.Now().UnixNano()
 
 	if data.expire <= (now + d.first.cutNo*d.interval) {
-		d.buffer.lock.Lock()
-		d.buffer.cache = append(d.buffer.cache, data)
-		d.buffer.lock.Unlock()
+		d.first.lock.Lock()
+		d.first.cache = append(d.first.cache, data)
+		d.first.lock.Unlock()
 	} else if data.expire > (now + d.second.cutNo*d.interval) {
 		d.third.lock.Lock()
 		d.third.cache = append(d.third.cache, data)
@@ -119,30 +99,15 @@ func (d *ExpireCache) upSecondCache() {
 
 	var next = time.Now().UnixNano() + d.first.cutNo*d.interval
 	d.second.lock.Lock()
-	defer d.second.lock.Unlock()
-	// Sort arrge
-	sort.Sort(KVS(d.second.cache))
+	// data split by expire time
+	min, max := ExpireSplit(d.second.cache, next)
 
-	if length := len(d.second.cache); length == 0 {
-		return
-	} else if d.second.cache[0].expire > next {
-		return
-	} else if d.second.cache[length-1].expire < next {
-		d.buffer.lock.Lock()
-		d.buffer.cache = append(d.buffer.cache, d.second.cache...)
-		d.buffer.lock.Unlock()
-		d.second.cache = make([]*KeyValue, 0)
-	} else {
-		for i, row := range d.second.cache {
-			if row.expire > next {
-				d.buffer.lock.Lock()
-				d.buffer.cache = append(d.buffer.cache, d.second.cache[:i]...)
-				d.buffer.lock.Unlock()
-				d.second.cache = d.second.cache[i:]
-				break
-			}
-		}
-	}
+	d.first.lock.Lock()
+	d.first.cache = append(d.first.cache, min...)
+	d.first.lock.Unlock()
+
+	d.second.cache = max
+	d.second.lock.Unlock()
 }
 
 // When insert new data to sort
@@ -150,27 +115,13 @@ func (d *ExpireCache) upThirdCache() {
 	var next = time.Now().UnixNano() + d.second.cutNo*d.interval
 	// Sort arrge
 	d.third.lock.Lock()
-	defer d.third.lock.Unlock()
-	sort.Sort(KVS(d.third.cache))
+	// data split by expire time
+	min, max := ExpireSplit(d.third.cache, next)
 
-	if length := len(d.third.cache); length == 0 {
-		return
-	} else if d.third.cache[0].expire > next {
-		return
-	} else if d.third.cache[length-1].expire < next {
-		d.second.lock.Lock()
-		d.second.cache = append(d.second.cache, d.third.cache...)
-		d.second.lock.Unlock()
-		d.third.cache = make([]*KeyValue, 0)
-	} else {
-		for i, row := range d.third.cache {
-			if row.expire > next {
-				d.second.lock.Lock()
-				d.second.cache = append(d.second.cache, d.third.cache[:i]...)
-				d.second.lock.Unlock()
-				d.third.cache = d.third.cache[i:]
-				break
-			}
-		}
-	}
+	d.second.lock.Lock()
+	d.second.cache = append(d.second.cache, min...)
+	d.second.lock.Unlock()
+
+	d.third.cache = max
+	d.third.lock.Unlock()
 }

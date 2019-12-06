@@ -57,19 +57,18 @@ type KeyValue struct {
 	expire int64
 }
 
-// sort by expire time
-type KVS []*KeyValue
+func ExpireSplit(rows []*KeyValue, timestamp int64) ([]*KeyValue, []*KeyValue) {
+	var min = make([]*KeyValue, 0)
+	var max = make([]*KeyValue, 0)
 
-func (t KVS) Len() int {
-	return len(t)
-}
-
-func (t KVS) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t KVS) Less(i, j int) bool {
-	return t[i].expire < t[j].expire
+	for _, row := range rows {
+		if row.expire <= timestamp {
+			min = append(min, row)
+		} else {
+			max = append(max, row)
+		}
+	}
+	return min, max
 }
 
 func parseMaxMemory(str string) (int64, error) {
