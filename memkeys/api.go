@@ -6,7 +6,7 @@ import (
 
 type Cache interface {
 	// set key-value, no time expire
-	// Will invalidate the original expiration time
+	// Will keep the original expiration time
 	Set(key string, val interface{})
 
 	// set key-value with time expire

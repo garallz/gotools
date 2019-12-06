@@ -5,8 +5,9 @@
 ```go
 type Cache interface {
 	// set key-value, no time expire
-	// Will invalidate the original expiration time
-	// 会使原有的过期时间失效永远存活
+	// keep the original expiration time
+	// 保持原有过期时间
+	// 如果是新的将永远存活
 	Set(key string, val interface{})
 
 	// Add key-value with time expire
