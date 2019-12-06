@@ -40,3 +40,15 @@ func (t ByNext) Swap(i, j int) {
 func (t ByNext) Less(i, j int) bool {
 	return t[i].next < t[j].next
 }
+
+func TimeSplit(rows []*TimerFunc, timestamp int64) ([]*TimerFunc, []*TimerFunc) {
+	var mins, maxs = make([]*TimerFunc, 0), make([]*TimerFunc, 0)
+	for _, row := range rows {
+		if row.next <= timestamp {
+			mins = append(mins, row)
+		} else {
+			maxs = append(maxs, row)
+		}
+	}
+	return mins, maxs
+}
