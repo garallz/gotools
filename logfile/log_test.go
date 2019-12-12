@@ -6,22 +6,19 @@ import (
 	"time"
 )
 
-func TestLogJustLogInit(t *testing.T) {
-	l := LogInit(&LogStruct{
-		Cache:    false,
-		FileTime: TimeMinute,
-	})
+// func TestLogJustLogInit(t *testing.T) {
+// 	l := LogInit(&LogStruct{
+// 		Cache:    false,
+// 		FileTime: TimeMinute,
+// 	})
 
-	for i := 1; i < 1000; i++ {
-		l.WriteError("<xml>123</xml>")
-		time.Sleep(time.Millisecond * 1000)
-	}
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+// 	for i := 1; i < 1000; i++ {
+// 		l.WriteError("<xml>123</xml>")
+// 		time.Sleep(time.Millisecond * 100)
+// 	}
 
-	time.Sleep(time.Second * 300)
-}
+// 	time.Sleep(time.Second * 80)
+// }
 
 /*
 func TestDirCreate(t *testing.T) {
@@ -48,28 +45,28 @@ func TestFileCreate(t *testing.T) {
 }
 */
 
-func TestLogLevel(t *testing.T) {
-	l := LogInit(&LogStruct{
-		Level: LevelWarn,
-	})
+// func TestLogLevel(t *testing.T) {
+// 	l := LogInit(&LogStruct{
+// 		Level: LevelWarn,
+// 	})
 
-	err := l.WriteWarn("message", "111")
-	if err != nil {
-		t.Error(err)
-	}
-	err = l.WriteError("message", "222")
-	if err != nil {
-		t.Error(err)
-	}
-	err = l.WriteWarnf("%s %d", "message", 333)
-	if err != nil {
-		t.Error(err)
-	}
-	err = l.WriteErrorf("%s %d", "message", 444)
-	if err != nil {
-		t.Error(err)
-	}
-}
+// 	err := l.WriteWarn("message", "111")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	err = l.WriteError("message", "222")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	err = l.WriteWarnf("%s %d", "message", 333)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	err = l.WriteErrorf("%s %d", "message", 444)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestCacheWrite(t *testing.T) {
 	str := []string{
@@ -83,6 +80,7 @@ func TestCacheWrite(t *testing.T) {
 
 	l := LogInit(&LogStruct{
 		TimeFormat: "15:04:05",
+		Cache:      true,
 		CacheSize:  1024,
 	})
 

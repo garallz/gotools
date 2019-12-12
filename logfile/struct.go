@@ -54,21 +54,24 @@ type LogStruct struct {
 	Dir bool
 	// write log file data type, like: json, byte
 	DataType DataType
+	// Error open file to write with deal function
+	ErrFunc func()
 }
 
 type LogData struct {
-	cache  bool
-	size   int
-	format string
-	name   string
-	path   string
-	level  LogLevel
-	time   LogTime
-	dir    bool
-	buf    *bytes.Buffer
-	file   *os.File
-	stamp  int64
-	mu     sync.Mutex
-	types  DataType
-	chann  chan string
+	cache    bool
+	size     int
+	format   string
+	name     string
+	path     string
+	level    LogLevel
+	time     LogTime
+	dir      bool
+	buf      *bytes.Buffer
+	file     *os.File
+	flock    sync.RWMutex
+	stamp    int64
+	mu       sync.Mutex
+	types    DataType
+	function func()
 }

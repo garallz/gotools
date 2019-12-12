@@ -10,8 +10,6 @@ import (
 func LogInit(l *LogStruct) *LogData {
 	// Check struct data.
 	d := l.checkStruct()
-	// channel to write log data
-	go d.init()
 	// Open file to write and init cache.
 	d.open()
 	// Init file time split

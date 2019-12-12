@@ -1,6 +1,7 @@
 package logfile
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,7 +21,6 @@ func (l *LogStruct) checkStruct() *LogData {
 		path:   "./",
 		format: "2006-01-02 15:04:05",
 		types:  DataTypeJson,
-		chann:  make(chan string),
 	}
 
 	if l == nil {
@@ -44,7 +44,7 @@ func (l *LogStruct) checkStruct() *LogData {
 			if l.CacheSize != 0 {
 				d.size = l.CacheSize
 			}
-			d.buf.Reset()
+			d.buf = new(bytes.Buffer)
 		}
 		if l.Dir {
 			d.dir = true
@@ -61,13 +61,19 @@ func (l *LogStruct) checkStruct() *LogData {
 
 // time utc
 func (l *LogData) initStamp() {
-	now := time.Now()
-	ps, _ := time.Parse("2006-01-02 15:04:05", now.Format("2006-01-02 15:04:05"))
-	is := ps.Unix() - now.Unix()
-
-	nowStr := now.Format(string(l.time))
-	ts, _ := time.Parse(string(l.time), nowStr)
-	l.stamp = ts.Unix() - is
+	year, mon, day := time.Now().Date()
+	if l.time == TimeMonth {
+		l.stamp = time.Date(year, mon, 0, 0, 0, 0, 0, time.Local).Unix()
+	} else if l.time == TimeDay {
+		l.stamp = time.Date(year, mon, day, 0, 0, 0, 0, time.Local).Unix()
+	} else if l.time == TimeHour {
+		hour := time.Now().Hour()
+		l.stamp = time.Date(year, mon, day, hour, 0, 0, 0, time.Local).Unix()
+	} else if l.time == TimeMinute {
+		hour := time.Now().Hour()
+		minute := time.Now().Minute()
+		l.stamp = time.Date(year, mon, day, hour, minute, 0, 0, time.Local).Unix()
+	}
 	l.upStamp()
 }
 
@@ -81,6 +87,9 @@ func (l *LogData) open() {
 		name = filepath.Join(l.path, d, l.name+"."+time.Now().Format(fmt.Sprint(l.time)))
 	}
 
+	l.flock.Lock()
+	defer l.flock.Unlock()
+	l.file.Close()
 	l.file, err = os.OpenFile(name, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		panic("Open log file error: " + err.Error())
@@ -126,7 +135,7 @@ func (l *LogData) put(level string, args []interface{}) error {
 		})
 		return l.putByte(now, bts)
 	} else {
-		message := fmt.Sprintf("%s\t%s\t%s\n", now.Format(l.format), level, fmt.Sprint(args...))
+		message := fmt.Sprintf("%s\t%s\t%s", now.Format(l.format), level, fmt.Sprint(args...))
 		return l.putString(now, message)
 	}
 }
@@ -142,7 +151,7 @@ func (l *LogData) putf(level string, msg string) error {
 		})
 		return l.putByte(now, bts)
 	} else {
-		msg = fmt.Sprintf("%s\t%s\t%s\n", now.Format(l.format), level, msg)
+		msg = fmt.Sprintf("%s\t%s\t%s", now.Format(l.format), level, msg)
 		return l.putString(now, msg)
 	}
 }
@@ -150,7 +159,7 @@ func (l *LogData) putf(level string, msg string) error {
 func (l *LogData) exit() {
 	if l.cache {
 		l.mu.Lock()
-		l.chann <- l.buf.String()
+		l.sendChann(l.buf.String())
 		l.mu.Unlock()
 	}
 	l.file.Close()
@@ -164,9 +173,9 @@ func (l *LogData) putByte(ts time.Time, bts []byte) error {
 	}
 
 	if l.cache {
-		go l.sendCache(string(bts))
+		go l.sendCache(string(bts) + "\n")
 	} else {
-		go l.sendChann(string(bts))
+		go l.sendChann(string(bts) + "\n")
 	}
 	return nil
 }
@@ -178,9 +187,9 @@ func (l *LogData) putString(ts time.Time, str string) error {
 	}
 
 	if l.cache {
-		go l.sendCache(str)
+		go l.sendCache(str + "\n")
 	} else {
-		go l.sendChann(str)
+		go l.sendChann(str + "\n")
 	}
 	return nil
 }
@@ -190,30 +199,40 @@ func (l *LogData) sendCache(str string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.buf.WriteString(str + "\n")
+	l.buf.WriteString(str)
 	if l.buf.Len() >= l.size {
-		l.chann <- l.buf.String()
+		l.sendCache(l.buf.String())
 		l.buf.Reset()
 	}
 	return
 }
 
 // send data to write by channel
-func (l *LogData) sendChann(str string) {
-	str += "\n"
-	l.chann <- str
+func (l *LogData) sendChann(data string) {
+	data = strings.Replace(data, "\\u003c", "<", -1)
+	data = strings.Replace(data, "\\u003e", ">", -1)
+	data = strings.Replace(data, "\\u0026", "&", -1)
+
+	l.flock.RLock()
+	_, err := l.file.WriteString(data)
+	l.flock.RUnlock()
+	if err != nil {
+		l.reset(data, 1)
+	}
 }
 
-// read channel to write log data
-func (l *LogData) init() {
-	for {
-		select {
-		case data := <-l.chann:
-			data = strings.Replace(data, "\\u003c", "<", -1)
-			data = strings.Replace(data, "\\u003e", ">", -1)
-			data = strings.Replace(data, "\\u0026", "&", -1)
-			l.file.WriteString(data)
+func (l *LogData) reset(data string, num int) {
+	l.open()
+
+	l.flock.Lock()
+	_, err := l.file.WriteString(data)
+	l.flock.Unlock()
+	if err != nil {
+		if num >= 4 {
+			l.function()
 		}
+		time.Sleep(time.Second)
+		l.reset(data, num+1)
 	}
 }
 
@@ -221,11 +240,11 @@ func (l *LogData) init() {
 func (l *LogData) check(now int64) error {
 	if l.stamp <= now {
 		l.mu.Lock()
-		if l.stamp <= now {
+		if l.stamp > now {
 			return nil
 		}
 		if l.cache {
-			l.chann <- l.buf.String()
+			l.sendCache(l.buf.String())
 			l.buf.Reset()
 		}
 
