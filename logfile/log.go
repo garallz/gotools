@@ -61,18 +61,11 @@ func (l *LogStruct) checkStruct() *LogData {
 
 // time utc
 func (l *LogData) initStamp() {
-	year, mon, day := time.Now().Date()
-	if l.time == TimeMonth {
-		l.stamp = time.Date(year, mon, 0, 0, 0, 0, 0, time.Local).Unix()
-	} else if l.time == TimeDay {
-		l.stamp = time.Date(year, mon, day, 0, 0, 0, 0, time.Local).Unix()
-	} else if l.time == TimeHour {
-		hour := time.Now().Hour()
-		l.stamp = time.Date(year, mon, day, hour, 0, 0, 0, time.Local).Unix()
-	} else if l.time == TimeMinute {
-		hour := time.Now().Hour()
-		minute := time.Now().Minute()
-		l.stamp = time.Date(year, mon, day, hour, minute, 0, 0, time.Local).Unix()
+	if timestamp, err := time.ParseInLocation(string(l.time),
+		time.Now().Format(string(l.time)), time.Local); err != nil {
+		panic(err)
+	} else {
+		l.stamp = timestamp.Unix()
 	}
 	l.upStamp()
 }

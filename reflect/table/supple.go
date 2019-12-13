@@ -209,14 +209,15 @@ func TypeTime(data interface{}) (time.Time, bool) {
 	return time.Now(), false
 }
 
+var ErrNotThisTimeFormat = errors.New("Not this time string format")
+
 // ParseTime string to time.Time
 func ParseTime(str string) (time.Time, error) {
 	layout := TimeLayout(str)
 	if len(layout) == 0 {
-		return time.Now(), fmt.Errorf("Not time format")
+		return time.Now(), ErrNotThisTimeFormat
 	}
 
-	var err error
 	for _, format := range layout {
 		if stamp, err := time.ParseInLocation(format, str, time.Local); err == nil {
 			return stamp, nil
@@ -230,7 +231,7 @@ func ParseTime(str string) (time.Time, error) {
 		return time.Unix(num, 0), nil
 	}
 
-	return time.Now(), err
+	return time.Now(), fmt.Errorf("Cannot parse string to time.Time with: [%s]", str)
 }
 
 // TimeLayout check time string lenght  to time format
@@ -249,9 +250,9 @@ func TimeLayout(str string) []string {
 	case 13:
 		return []string{"2006-01-02 15"}
 	case 14:
-		return []string{"200601021504"}
+		return []string{"20060102150405"}
 	case 16:
-		return []string{"2006-01-02 15:04", "20060102150405"}
+		return []string{"2006-01-02 15:04"}
 	case 19:
 		return []string{"2006-01-02 15:04:05"}
 	default:
