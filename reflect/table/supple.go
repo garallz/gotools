@@ -219,7 +219,10 @@ func ParseTime(str string) (time.Time, error) {
 	}
 
 	for _, format := range layout {
-		if stamp, err := time.ParseInLocation(format, str, time.Local); err == nil {
+		// if stamp, err := time.ParseInLocation(format, str, time.Local); err == nil {
+		// 	return stamp, nil
+		// }
+		if stamp, err := time.Parse(format, str); err == nil {
 			return stamp, nil
 		}
 	}
