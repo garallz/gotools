@@ -8,26 +8,26 @@ import (
 
 const basicNumber int64 = 100 * 1000 * 1000 // 100ms
 
-// Container : save cache data containers
-type Container struct {
-	cache []*KeyValue
+// container : save cache data containers
+type container struct {
+	cache []*keyValues
 	count int32
 	cutNo int64
 	lock  sync.Mutex
 }
 
-type ExpireCache struct {
+type expireCache struct {
 	interval int64
-	first    *Container
-	second   *Container
-	third    *Container
+	first    *container
+	second   *container
+	third    *container
 }
 
 func (d *Memory) newExp() {
-	d.expCache = &ExpireCache{
-		third:  &Container{cutNo: 250 * basicNumber},
-		second: &Container{cutNo: 25 * basicNumber},
-		first:  &Container{cutNo: 5 * basicNumber},
+	d.expCache = &expireCache{
+		third:  &container{cutNo: 250 * basicNumber},
+		second: &container{cutNo: 25 * basicNumber},
+		first:  &container{cutNo: 5 * basicNumber},
 	}
 }
 
@@ -53,7 +53,7 @@ func (m *Memory) initExpire() {
 				now := time.Now().UnixNano()
 
 				d.first.lock.Lock()
-				rows, max := ExpireSplit(d.first.cache, now)
+				rows, max := expireSplit(d.first.cache, now)
 				d.first.cache = max
 				d.first.lock.Unlock()
 
@@ -71,7 +71,7 @@ func (m *Memory) initExpire() {
 	}(m)
 }
 
-func (d *ExpireCache) putInto(data *KeyValue) {
+func (d *expireCache) putInto(data *keyValues) {
 	now := time.Now().UnixNano()
 
 	if data.expire <= (now + d.first.cutNo*d.interval) {
@@ -90,7 +90,7 @@ func (d *ExpireCache) putInto(data *KeyValue) {
 }
 
 // When insert new data to sort
-func (d *ExpireCache) upSecondCache() {
+func (d *expireCache) upSecondCache() {
 	if count := atomic.AddInt32(&d.third.count, 1); count >= 5 {
 		// run cache third check
 		go d.upThirdCache()
@@ -100,7 +100,7 @@ func (d *ExpireCache) upSecondCache() {
 	var next = time.Now().UnixNano() + d.first.cutNo*d.interval
 	d.second.lock.Lock()
 	// data split by expire time
-	min, max := ExpireSplit(d.second.cache, next)
+	min, max := expireSplit(d.second.cache, next)
 
 	d.first.lock.Lock()
 	d.first.cache = append(d.first.cache, min...)
@@ -111,12 +111,12 @@ func (d *ExpireCache) upSecondCache() {
 }
 
 // When insert new data to sort
-func (d *ExpireCache) upThirdCache() {
+func (d *expireCache) upThirdCache() {
 	var next = time.Now().UnixNano() + d.second.cutNo*d.interval
 	// Sort arrge
 	d.third.lock.Lock()
 	// data split by expire time
-	min, max := ExpireSplit(d.third.cache, next)
+	min, max := expireSplit(d.third.cache, next)
 
 	d.second.lock.Lock()
 	d.second.cache = append(d.second.cache, min...)

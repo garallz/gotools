@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	ByteSizeKB = 1024
-	ByteSizeMB = ByteSizeKB * 1024
-	ByteSizeGB = ByteSizeMB * 1024
+	byteSizeKB = 1024
+	byteSizeMB = byteSizeKB * 1024
+	byteSizeGB = byteSizeMB * 1024
 )
 
 type Memory struct {
@@ -26,9 +26,9 @@ type Memory struct {
 	maxMem int64
 
 	// not page to store key-values
-	oneCache *MemoryData
+	oneCache *memoryData
 	// all key-values store
-	allCache []*MemoryData
+	allCache []*memoryData
 
 	// 是否分页计算地址
 	paging bool
@@ -37,7 +37,7 @@ type Memory struct {
 	pages int
 
 	// 定时过期时间key-values删除处理存放
-	expCache *ExpireCache
+	expCache *expireCache
 
 	// keys number
 	keys int32
@@ -46,20 +46,20 @@ type Memory struct {
 	function func()
 }
 
-type MemoryData struct {
+type memoryData struct {
 	lock  sync.RWMutex
-	cache map[string]*KeyValue
+	cache map[string]*keyValues
 }
 
-type KeyValue struct {
+type keyValues struct {
 	key    string
 	value  interface{}
 	expire int64
 }
 
-func ExpireSplit(rows []*KeyValue, timestamp int64) ([]*KeyValue, []*KeyValue) {
-	var min = make([]*KeyValue, 0)
-	var max = make([]*KeyValue, 0)
+func expireSplit(rows []*keyValues, timestamp int64) ([]*keyValues, []*keyValues) {
+	var min = make([]*keyValues, 0)
+	var max = make([]*keyValues, 0)
 
 	for _, row := range rows {
 		if row.expire <= timestamp {
@@ -85,17 +85,17 @@ func parseMaxMemory(str string) (int64, error) {
 
 	switch strings.ToUpper(str[len(str)-2:]) {
 	case "KB":
-		return int64(num * ByteSizeKB), nil
+		return int64(num * byteSizeKB), nil
 	case "MB":
-		return int64(num * ByteSizeMB), nil
+		return int64(num * byteSizeMB), nil
 	case "GB":
-		return int64(num * ByteSizeGB), nil
+		return int64(num * byteSizeGB), nil
 	default:
 		return 0, fmt.Errorf("Max Memory Size Unit: %s was wrong", str)
 	}
 }
 
-func (m *Memory) memory(key string) *MemoryData {
+func (m *Memory) memory(key string) *memoryData {
 	if m.paging {
 		pag := pagination(key, m.pages)
 		return m.allCache[pag]
@@ -117,7 +117,7 @@ func (m *Memory) set(key string, value interface{}, duration int64) {
 
 	if !ok {
 		atomic.AddInt32(&m.keys, 1)
-		v = &KeyValue{
+		v = &keyValues{
 			key:   key,
 			value: value,
 		}
@@ -194,13 +194,13 @@ func (m *Memory) flush() bool {
 
 	m.newExp()
 	if m.paging {
-		var cache = make([]*MemoryData, m.pages+1)
+		var cache = make([]*memoryData, m.pages+1)
 		for i, _ := range cache {
-			cache[i] = &MemoryData{cache: make(map[string]*KeyValue)}
+			cache[i] = &memoryData{cache: make(map[string]*keyValues)}
 		}
 		m.allCache = cache
 	} else {
-		m.oneCache = &MemoryData{cache: make(map[string]*KeyValue)}
+		m.oneCache = &memoryData{cache: make(map[string]*keyValues)}
 	}
 	atomic.SwapInt32(&m.keys, 0)
 	m.state = false

@@ -15,10 +15,10 @@ func newCache(maxMem string, interval int64) (*Memory, error) {
 	}
 	data.maxMem = size
 
-	if data.maxMem <= 10*ByteSizeMB {
-		data.oneCache = &MemoryData{cache: make(map[string]*KeyValue)}
+	if data.maxMem <= 10*byteSizeMB {
+		data.oneCache = &memoryData{cache: make(map[string]*keyValues)}
 	} else {
-		num := int(data.maxMem/(10*ByteSizeMB) + 1)
+		num := int(data.maxMem/(10*byteSizeMB) + 1)
 		for i := 1; ; i *= 2 {
 			if num <= i {
 				data.pages = i - 1
@@ -26,9 +26,9 @@ func newCache(maxMem string, interval int64) (*Memory, error) {
 			}
 		}
 		data.paging = true
-		data.allCache = make([]*MemoryData, data.pages+1)
+		data.allCache = make([]*memoryData, data.pages+1)
 		for j, _ := range data.allCache {
-			data.allCache[j] = &MemoryData{cache: make(map[string]*KeyValue)}
+			data.allCache[j] = &memoryData{cache: make(map[string]*keyValues)}
 		}
 	}
 
