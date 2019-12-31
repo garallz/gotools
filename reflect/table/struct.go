@@ -13,9 +13,17 @@ const (
 	POSTGRES_TYPE DBName = "postgres"
 )
 
+type ParseTimeType string
+
+const (
+	ParseTimeUTC      ParseTimeType = "UTC"
+	ParseTimeLocation ParseTimeType = "Location"
+)
+
 var (
 	databaseName   = MYSQL_TYPE
 	reflectTagName = "db"
+	parseTimeType  = ParseTimeLocation
 )
 
 var (
@@ -75,6 +83,11 @@ func SetDefaultDBName(name DBName) {
 // SetDefaultTagName : setting default data struct reflect tag name, defaut [db]
 func SetDefaultTagName(name string) {
 	reflectTagName = name
+}
+
+// SetParseTimeType : set parse time string to time type
+func SetParseTimeType(name ParseTimeType) {
+	parseTimeType = name
 }
 
 // SetDBName : [postgres, mysql]

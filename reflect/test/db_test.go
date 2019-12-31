@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/garallz/Go/reflect/table"
+	"github.com/garallz/gotools/reflect/table"
 	_ "github.com/go-sql-driver/mysql"
 )
 

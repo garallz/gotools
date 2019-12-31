@@ -209,21 +209,22 @@ func TypeTime(data interface{}) (time.Time, bool) {
 	return time.Now(), false
 }
 
-var ErrNotThisTimeFormat = errors.New("Not this time string format")
-
 // ParseTime string to time.Time
 func ParseTime(str string) (time.Time, error) {
 	layout := TimeLayout(str)
 	if len(layout) == 0 {
-		return time.Now(), ErrNotThisTimeFormat
+		return time.Now(), fmt.Errorf("This not time string format")
 	}
 
 	for _, format := range layout {
-		// if stamp, err := time.ParseInLocation(format, str, time.Local); err == nil {
-		// 	return stamp, nil
-		// }
-		if stamp, err := time.Parse(format, str); err == nil {
-			return stamp, nil
+		if parseTimeType == ParseTimeLocation {
+			if stamp, err := time.ParseInLocation(format, str, time.Local); err == nil {
+				return stamp, nil
+			}
+		} else {
+			if stamp, err := time.Parse(format, str); err == nil {
+				return stamp, nil
+			}
 		}
 	}
 
