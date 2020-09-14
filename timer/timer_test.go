@@ -9,14 +9,35 @@ import (
 func TestTimer(t *testing.T) {
 	InitTicker(1)
 
+	SetTimeZone("+00:01")
 	time.Sleep(time.Second)
 
-	fmt.Println(time.Now())
+	fmt.Println(time.Now(), time.Now().UTC().Unix())
 	if err := NewTimer("00", 4, false, "time [:00] one", display); err != nil {
 		t.Error(err)
 	}
 
-	if err := NewTimer("30", 4, false, "time [:30] two", display); err != nil {
+	// if err := NewTimer("15", 4, false, "time [:15] one", display); err != nil {
+	// 	t.Error(err)
+	// }
+
+	// if err := NewTimer("30", 4, false, "time [:30] two", display); err != nil {
+	// 	t.Error(err)
+	// }
+
+	// if err := NewTimer("45", 4, false, "time [:45] two", display); err != nil {
+	// 	t.Error(err)
+	// }
+
+	if err := NewTimer("06:00", 4, false, "time [06:00] one", display); err != nil {
+		t.Error(err)
+	}
+
+	if err := NewTimer("07:00", 4, false, "time [07:00] one", display); err != nil {
+		t.Error(err)
+	}
+
+	if err := NewTimer("08:00", 4, false, "time [08:00] one", display); err != nil {
 		t.Error(err)
 	}
 
@@ -46,4 +67,10 @@ func oneprint(data interface{}) {
 
 func twoprint(data interface{}) {
 	fmt.Println(time.Now(), "two second last display")
+}
+
+func TestTimeZone(t *testing.T) {
+	a := time.Now().Local().Unix()
+	b := time.Now().UTC().Unix()
+	fmt.Println(a, b)
 }

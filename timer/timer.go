@@ -101,26 +101,23 @@ func checkTime(stamp string) (int64, int64, error) {
 		interval = int64(temp * DayTimeUnit)
 
 	case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		// Solve the time difference of time zone
-		timeString := now.Format(TimeFormatString)
-		ts, _ := time.Parse(TimeFormatString, timeString)
-		tc := now.Unix() - ts.Unix()
-
 		var t time.Time
+		timeString := now.Format(TimeFormatString)
 		switch len(stamp) {
 		case 2: // second
-			t, err = time.Parse(TimeFormatString, timeString[:17]+stamp)
-			next = t.Unix() + tc
+			// t, err = time.Parse(TimeFormatString, timeString[:17]+stamp)
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:17]+stamp, time.Local)
+			next = t.UTC().Unix()
 			interval = MinuteTimeUnit
 
 		case 5: // min
-			t, err = time.Parse(TimeFormatString, timeString[:14]+stamp)
-			next = t.Unix() + tc
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:14]+stamp, time.Local)
+			next = t.UTC().Unix() + GetJetLag()%3600
 			interval = HourTimeUnit
 
 		case 8: // hour
-			t, err = time.Parse(TimeFormatString, timeString[:11]+stamp)
-			next = t.Unix() + tc
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:11]+stamp, time.Local)
+			next = t.UTC().Unix() + GetJetLag()
 			interval = DayTimeUnit
 
 		default:
@@ -131,8 +128,10 @@ func checkTime(stamp string) (int64, int64, error) {
 		err = errors.New("Can't parst stamp value, please check it")
 	}
 
-	if err == nil && next <= now.Unix() {
-		next += interval / SecondTimeUnit
+	if err == nil && interval > 0 {
+		for next <= now.Unix() {
+			next += interval / SecondTimeUnit
+		}
 	}
 	return next * SecondTimeUnit, interval, err
 }
