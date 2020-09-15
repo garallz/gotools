@@ -21,6 +21,7 @@ func SetTimeZone(v string) error {
 		return errors.New("Time Zone string first byte not ['-' or '+']")
 	} else if v == "+00:00" {
 		timeZoneStatus = true
+		return nil
 	}
 
 	t := strings.Split(v[1:], ":")
@@ -48,7 +49,6 @@ func SetTimeZone(v string) error {
 		timeZoneJetLag = -int64(h*3600 + m*60)
 	}
 	timeZoneStatus = true
-
 	return nil
 }
 

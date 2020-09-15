@@ -105,19 +105,18 @@ func checkTime(stamp string) (int64, int64, error) {
 		timeString := now.Format(TimeFormatString)
 		switch len(stamp) {
 		case 2: // second
-			// t, err = time.Parse(TimeFormatString, timeString[:17]+stamp)
-			t, err = time.ParseInLocation(TimeFormatString, timeString[:17]+stamp, time.Local)
-			next = t.UTC().Unix()
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:17]+stamp, time.UTC)
+			next = t.UTC().Unix() - 60
 			interval = MinuteTimeUnit
 
 		case 5: // min
-			t, err = time.ParseInLocation(TimeFormatString, timeString[:14]+stamp, time.Local)
-			next = t.UTC().Unix() + GetJetLag()%3600
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:14]+stamp, time.UTC)
+			next = t.UTC().Unix() - GetJetLag()%3600 - 3600
 			interval = HourTimeUnit
 
 		case 8: // hour
-			t, err = time.ParseInLocation(TimeFormatString, timeString[:11]+stamp, time.Local)
-			next = t.UTC().Unix() + GetJetLag()
+			t, err = time.ParseInLocation(TimeFormatString, timeString[:11]+stamp, time.UTC)
+			next = t.UTC().Unix() - GetJetLag() - 3600*24
 			interval = DayTimeUnit
 
 		default:
