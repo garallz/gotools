@@ -22,13 +22,14 @@ const (
 
 var (
 	databaseName   = MYSQL_TYPE
-	reflectTagName = "db"
+	defaultTagName = "db"
 	parseTimeType  = ParseTimeLocation
+	defaultSqlDB   *sql.DB
 )
 
 var (
-	ErrValueIsNull = errors.New("Values can't be null")
-	ErrIndexIsNull = errors.New("Index not set")
+	ErrValueIsNull = errors.New("values can't be null")
+	ErrIndexIsNull = errors.New("index not set")
 )
 
 // TableStruct function use by this struct
@@ -57,7 +58,7 @@ func NewTable(data interface{}, table, tag string, db *sql.DB) *TableStruct {
 	}
 
 	if tag == "" {
-		tag = reflectTagName
+		tag = defaultTagName
 	}
 
 	elem := GetTagValue(data, tag)
@@ -75,14 +76,40 @@ func NewTable(data interface{}, table, tag string, db *sql.DB) *TableStruct {
 	}
 }
 
+func NewDefault(data interface{}, table string) *TableStruct {
+	if table == "" || defaultSqlDB == nil || defaultTagName == "" {
+		panic("Set Default Values Wrong")
+	}
+	if reflect.TypeOf(data).Kind() != reflect.Ptr {
+		panic("This not ptr interface")
+	}
+	elem := GetTagValue(data, defaultTagName)
+	if len(elem) == 0 {
+		panic("Tag Values is Null")
+	}
+	return &TableStruct{
+		data:  data,
+		table: table,
+		db:    defaultSqlDB,
+		name:  databaseName,
+		tag:   defaultTagName,
+		elem:  elem,
+	}
+}
+
+// SetDefaultSqlDB : setting default database connect
+func SetDefaultSqlDB(db *sql.DB) {
+	defaultSqlDB = db
+}
+
 // SetDefaultDBName : setting default database, defaut [mysql]
 func SetDefaultDBName(name DBName) {
 	databaseName = name
 }
 
 // SetDefaultTagName : setting default data struct reflect tag name, defaut [db]
-func SetDefaultTagName(name string) {
-	reflectTagName = name
+func SetDefaultTagName(tag string) {
+	defaultTagName = tag
 }
 
 // SetParseTimeType : set parse time string to time type
