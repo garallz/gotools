@@ -11,7 +11,7 @@ import (
 // stamp -> time interval: s-m-h-d:  10s; 30m; 60h; 7d;
 // times: 	run times [-1:forever, 0:return not run]
 // run:  	defalut: running next time, if true run one times now.
-func NewTimer(stamp string, times int, run bool, msg interface{}, function func(interface{})) error {
+func NewTimer(stamp string, times int32, run bool, msg interface{}, function func(interface{})) error {
 	if next, interval, err := checkTime(stamp); err != nil {
 		return err
 	} else {
@@ -34,45 +34,46 @@ func NewTimer(stamp string, times int, run bool, msg interface{}, function func(
 			}
 		}
 
-		putInto(&TimerFunc{
+		var tmp TimerStruct = &TimerParamFunc{
 			function: function,
 			times:    times,
 			next:     next,
 			interval: interval,
-			msg:      msg,
-		})
+			param:    msg,
+		}
+		putPools(tmp)
 	}
 	return nil
 }
 
 // NewRunDuration : Make a new function run
 // times: [-1 meas forever], [0 meas not run]
-func NewRunDuration(duration time.Duration, times int, msg interface{}, function func(interface{})) {
+func NewRunDuration(duration time.Duration, times int32, msg interface{}, function func(interface{})) {
 	if times == 0 {
 		return
 	} else if times < 0 {
 		times = -1
 	}
 
-	var data = &TimerFunc{
-		next:     time.Now().Add(duration).UnixNano(),
+	var tmp TimerStruct = &TimerParamFunc{
+		next:     GetNextStamp(duration),
 		times:    times,
 		interval: int64(duration),
 		function: function,
-		msg:      msg,
+		param:    msg,
 	}
-	putInto(data)
+	putPools(tmp)
 }
 
 // NewRunTime : Make a new function run time just one times
 func NewRunTime(timestamp time.Time, msg interface{}, function func(interface{})) {
-	var data = &TimerFunc{
-		next:     timestamp.UnixNano(),
+	var tmp TimerStruct = &TimerParamFunc{
+		next:     GetTimeStamp(timestamp),
 		times:    1,
 		function: function,
-		msg:      msg,
+		param:    msg,
 	}
-	putInto(data)
+	putPools(tmp)
 }
 
 // check timerstamp value
@@ -132,5 +133,5 @@ func checkTime(stamp string) (int64, int64, error) {
 			next += interval / SecondTimeUnit
 		}
 	}
-	return next * SecondTimeUnit, interval, err
+	return next * 1000, interval / MilliTimeUnit, err
 }

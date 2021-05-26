@@ -27,7 +27,7 @@ func newCache(maxMem string, interval int64) (*Memory, error) {
 		}
 		data.paging = true
 		data.allCache = make([]*memoryData, data.pages+1)
-		for j, _ := range data.allCache {
+		for j := range data.allCache {
 			data.allCache[j] = &memoryData{cache: make(map[string]*keyValues)}
 		}
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestTimer(t *testing.T) {
-	InitTicker(1)
+	InitTickerInterval(1)
 
 	SetTimeZone("+00:01")
 	time.Sleep(time.Second)
@@ -18,17 +18,17 @@ func TestTimer(t *testing.T) {
 		t.Error(err)
 	}
 
-	// if err := NewTimer("15", 4, false, "time [:15] one", display); err != nil {
-	// 	t.Error(err)
-	// }
+	if err := NewTimer("15", 4, false, "time [:15] one", display); err != nil {
+		t.Error(err)
+	}
 
 	if err := NewTimer("06:00", 4, false, "time [06:00] one", display); err != nil {
 		t.Error(err)
 	}
 
-	//	NewRunDuration(time.Second*3, -1, nil, oneprint)
+	NewRunDuration(time.Second*3, -1, nil, oneprint)
 
-	//	NewRunTime(time.Now().Add(time.Second*2), nil, twoprint)
+	NewRunTime(time.Now().Add(time.Second*2), nil, twoprint)
 
 	// for i := 1; i < 10; i++ {
 	// 	NewRunTime(time.Now().Add(time.Second), i*111, display)
@@ -55,7 +55,7 @@ func twoprint(data interface{}) {
 }
 
 func TestTimeZone(t *testing.T) {
-	InitTicker(1)
+	InitTickerInterval(1)
 	SetTimeZone("+20:00")
 	now := time.Now().UTC().UnixNano()
 	if err := NewTimer("00:00:00", -1, false, "time [00:00:00] one", display); err != nil {

@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-const basicNumber int64 = 100 * MilliTimeUnit // 100ms
+const basicNumber int64 = 100 // 100ms
 
 // Container : save cache data containers
 type Container struct {
-	cache []*TimerFunc
+	cache []TimerStruct
 	count int32
 	cutNo int64
 	lock  sync.Mutex
@@ -23,10 +23,15 @@ var (
 )
 
 var level int64 = 5
+var initstatus uint32 = 0
+var inittest sync.Once
 
-// InitTicker : init timer ticker
+// InitTickerInterval : init timer ticker
 // base interval is 100ms, dafualt 100ms, [100ms * interval]
-func InitTicker(interval int64) {
+func InitTickerInterval(interval int64) {
+	if atomic.AddUint32(&initstatus, 1) != 1 {
+		return
+	}
 	if interval > 0 {
 		level = interval
 	}
@@ -38,53 +43,89 @@ func InitTicker(interval int64) {
 			select {
 			case <-ticker.C:
 
-				if count := atomic.AddInt32(&second.count, 1); count >= 4 {
+				if count := atomic.AddInt32(&second.count, 1); count%4 == 0 {
 					// run cache second check
 					go checkSecondCache()
-					atomic.SwapInt32(&second.count, 0)
 				}
 
-				now := time.Now().UnixNano()
 				// append first arrge data
 				first.lock.Lock()
-				mins, maxs := TimeSplit(first.cache, now)
+				mins, maxs := TimeSplit(first.cache, GetNowStamp())
 				first.cache = maxs
 				first.lock.Unlock()
 
 				for _, row := range mins {
-					go run(row)
+					go row.Run()
 				}
 			}
 		}
 	}()
 }
 
-func run(data *TimerFunc) {
-	switch data.times {
-	case 0:
+var minticker bool
+var newpoint chan TimerStruct
+var mintimer int64 = 10
+var nexttime chan int64
+
+// InitTickerMinTime : init timer ticker
+// base interval is 1ms, dafualt 100ms, [100ms * interval]
+func InitTickerMinTime(interval int64) {
+	if atomic.AddUint32(&initstatus, 1) != 1 {
 		return
-	case 1:
-		data.function(data.msg)
-		return
-	case -1:
-		data.next += data.interval
-	default:
-		data.times--
-		data.next += data.interval
+	}
+	minticker = true
+	level = 5
+	if interval > 0 {
+		mintimer = interval
 	}
 
-	go putInto(data)
-	data.function(data.msg)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+
+		for {
+			select {
+			case <-ticker.C:
+				// run cache second check
+				go checkSecondCache()
+
+			case ts := <-nexttime:
+
+				go func(timestamp int64) {
+					time.Sleep(time.Millisecond * time.Duration(timestamp))
+
+					now := GetNowStamp() + mintimer
+					// append first arrge data
+					first.lock.Lock()
+					mins, maxs := TimeSplit(first.cache, now)
+					first.cache = maxs
+					first.lock.Unlock()
+
+					for _, row := range mins {
+						go row.Run()
+					}
+				}(ts)
+
+			case tmp := <-newpoint:
+				// TODO: put to pool, check next run time
+				tmp.Run()
+			}
+		}
+	}()
 }
 
-func putInto(data *TimerFunc) {
-	now := time.Now().UnixNano()
+func putPools(data TimerStruct) {
+	if minticker {
+		newpoint <- data
+		return
+	}
 
-	if data.next <= (now + first.cutNo*level) {
+	now := GetNowStamp()
+
+	if data.Next() <= (now + first.cutNo*level) {
 		first.lock.Lock()
 		first.cache = append(first.cache, data)
 		first.lock.Unlock()
-	} else if data.next > (now + second.cutNo*level) {
+	} else if data.Next() > (now + second.cutNo*level) {
 		third.lock.Lock()
 		third.cache = append(third.cache, data)
 		third.lock.Unlock()
@@ -97,13 +138,12 @@ func putInto(data *TimerFunc) {
 
 // When insert new data to sort
 func checkSecondCache() {
-	if count := atomic.AddInt32(&third.count, 1); count >= 5 {
+	if count := atomic.AddInt32(&third.count, 1); count%5 == 0 {
 		// run cache third check
 		go checkThirdCache()
-		atomic.SwapInt32(&third.count, 0)
 	}
 
-	next := time.Now().UnixNano() + first.cutNo*level
+	next := GetNowStamp() + first.cutNo*level
 
 	second.lock.Lock()
 	mins, maxs := TimeSplit(second.cache, next)
@@ -118,7 +158,7 @@ func checkSecondCache() {
 
 // When insert new data to sort
 func checkThirdCache() {
-	next := time.Now().UnixNano() + second.cutNo*level
+	next := GetNowStamp() + second.cutNo*level
 
 	third.lock.Lock()
 	mins, maxs := TimeSplit(third.cache, next)
