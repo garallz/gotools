@@ -1,6 +1,7 @@
 package table
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -94,6 +95,46 @@ func (d *TableStruct) Insert() error {
 	sqlstr := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", d.table,
 		strings.Join(keys, ", "), strings.Join(line, ", "))
 	_, err := d.GetDB().Exec(sqlstr, values...)
+	return err
+}
+
+func (d *TableStruct) InOrUpdate(keys ...string) error {
+	if d.name != MYSQL_TYPE || d.index == "" {
+		return errors.New("index not set or database not mysql")
+	}
+	var inKeys, upKeys, inNum []string
+	var values []interface{}
+	var indexValue interface{}
+	for key, value := range d.elem {
+		inKeys = append(inKeys, key)
+		values = append(values, value.Interface())
+		if key == d.index {
+			indexValue = value.Interface()
+		}
+		inNum = append(inNum, "?")
+	}
+	if len(keys) > 0 {
+		for key, value := range d.elem {
+			for _, k := range keys {
+				if key == k && key != d.index {
+					upKeys = append(upKeys, key+"=?")
+					values = append(values, value.Interface())
+				}
+			}
+		}
+	} else {
+		for key, value := range d.elem {
+			if key != d.index {
+				upKeys = append(upKeys, key+"=?")
+				values = append(values, value.Interface())
+			}
+		}
+	}
+
+	values = append(values, indexValue)
+	sqlstr := "INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s WHERE %s=?"
+	_, err := d.GetDB().Exec(fmt.Sprintf(sqlstr, d.table, strings.Join(inKeys, ", "),
+		strings.Join(inNum, ", "), strings.Join(upKeys, ", "), d.index), values...)
 	return err
 }
 
