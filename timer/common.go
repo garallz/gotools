@@ -8,66 +8,125 @@ const (
 	TimeFormatLength = 19
 )
 
-// GetNowStamp : get time now stamp : millitime
-func GetNowStamp() int64 {
-	return time.Now().UnixNano() / MilliTimeUnit
-}
-
-// GetTimeStamp : get time now stamp : millitime
-func GetTimeStamp(t time.Time) int64 {
-	return t.UnixNano() / MilliTimeUnit
-}
-
-// GetNextStamp :add time duration stamp : millitime
-func GetNextStamp(d time.Duration) int64 {
-	return time.Now().Add(d).UnixNano() / MilliTimeUnit
-}
-
-// ConvDurationStamp : convert time duration to uint64 : millitime
-func ConvDurationStamp(d time.Duration) int64 {
-	return int64(d) / MilliTimeUnit
-}
-
-// AddDurationStamp : add time duration to uint64 : millitime
-func AddDurationStamp(t time.Time, d time.Duration) int64 {
-	return t.Add(d).UnixNano() / MilliTimeUnit
-}
-
 // time unit
 const (
-	NanoTimeUnit   = 1
-	MicroTimeUnit  = 1000 * NanoTimeUnit
-	MilliTimeUnit  = 1000 * MicroTimeUnit
-	SecondTimeUnit = 1000 * MilliTimeUnit
-	MinuteTimeUnit = 60 * SecondTimeUnit
-	HourTimeUnit   = 60 * MinuteTimeUnit
-	DayTimeUnit    = 24 * HourTimeUnit
+	TimeUnitSec  = 1000
+	TimeUnitMin  = 60 * TimeUnitSec
+	TimeUnitHour = 60 * TimeUnitMin
+	TimeUnitDay  = 24 * TimeUnitHour
+	TimeUnitWeek = 7 * TimeUnitDay
 )
 
-// ByNext sort by next time
-type ByNext []TimerStruct
-
-func (t ByNext) Len() int {
-	return len(t)
+type runFunc interface {
+	Run() bool
+	Uuid() int64
+	Next() int64
 }
 
-func (t ByNext) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
+type funcOnlyBody struct {
+	next     int64 // Next run time
+	uniq     int64 // function uuid
+	times    int   //
+	interval int64 // 时间间隔
+	function func()
 }
 
-func (t ByNext) Less(i, j int) bool {
-	return t[i].Next() < t[j].Next()
-}
-
-// TimeSplit : split next time run function
-func TimeSplit(rows []TimerStruct, timestamp int64) ([]TimerStruct, []TimerStruct) {
-	var mins, maxs = make([]TimerStruct, 0), make([]TimerStruct, 0)
-	for _, row := range rows {
-		if row.Next() <= timestamp {
-			mins = append(mins, row)
-		} else {
-			maxs = append(maxs, row)
-		}
+func (f *funcOnlyBody) Uuid() int64 {
+	if f == nil {
+		return 0
 	}
-	return mins, maxs
+	return f.uniq
+}
+func (f *funcOnlyBody) Next() int64 {
+	if f == nil {
+		return 0
+	}
+	return f.next
+}
+func (f *funcOnlyBody) Run() bool {
+	if f.times == 0 {
+		return false
+	}
+	f.times--
+	f.next += f.interval
+	f.function()
+	return true
+}
+
+type funcArgsBody struct {
+	next     int64 // Next run time
+	uniq     int64 // function uuid
+	times    int   //
+	interval int64 // 时间间隔
+	message  interface{}
+	function func(interface{})
+}
+
+func (f *funcArgsBody) Uuid() int64 { return f.uniq }
+func (f *funcArgsBody) Next() int64 { return f.next }
+func (f *funcArgsBody) Run() bool {
+	if f.times == 0 {
+		return false
+	}
+	f.times--
+	f.next += f.interval
+	f.function(f.message)
+	return true
+}
+
+type funcBoolBody struct {
+	next     int64 // Next run time
+	uniq     int64 // function uuid
+	times    int   //
+	interval int64 // 时间间隔
+	function func() bool
+}
+
+func (f *funcBoolBody) Uuid() int64 { return f.uniq }
+func (f *funcBoolBody) Next() int64 { return f.next }
+func (f *funcBoolBody) Run() bool {
+	if f.times == 0 {
+		return false
+	}
+	f.times--
+	f.next += f.interval
+	return f.function()
+}
+
+type funcArgsBool struct {
+	next     int64 // Next run time
+	uniq     int64 // function uuid
+	times    int   //
+	interval int64 // 时间间隔
+	message  interface{}
+	function func(interface{}) bool
+}
+
+func (f *funcArgsBool) Uuid() int64 { return f.uniq }
+func (f *funcArgsBool) Next() int64 { return f.next }
+func (f *funcArgsBool) Run() bool {
+	if f.times == 0 {
+		return false
+	}
+	f.times--
+	f.next += f.interval
+	return f.function(f.message)
+}
+
+type funcMonthDay struct {
+	next     int64 // Next run time
+	uniq     int64 // function uuid
+	times    int   //
+	function func() bool
+}
+
+func (f *funcMonthDay) Uuid() int64 { return f.uniq }
+func (f *funcMonthDay) Next() int64 { return f.next }
+func (f *funcMonthDay) Run() bool {
+	if f.times == 0 {
+		return false
+	}
+	f.times--
+	f.next = time.UnixMilli(f.next).AddDate(0, 1, 0).UnixMilli()
+	return f.function()
 }

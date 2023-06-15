@@ -1,172 +1,115 @@
 package timer
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-const basicNumber int64 = 100 // 100ms
-
-// Container : save cache data containers
-type Container struct {
-	cache []TimerStruct
-	count int32
-	cutNo int64
-	lock  sync.Mutex
+type timerData struct {
+	zone  time.Duration // time zone of second
+	uniq  int64         // unique id
+	root  *chainNode
+	last  *chainNode
+	timer *time.Ticker
 }
 
-var (
-	first  = &Container{cutNo: 5 * basicNumber}
-	second = &Container{cutNo: 25 * basicNumber}
-	third  = &Container{cutNo: 250 * basicNumber}
-)
+func (t *timerData) SetTimeZone(dur time.Duration) { t.zone = dur }
 
-var level int64 = 5
-var initstatus uint32 = 0
-var inittest sync.Once
+func (t *timerData) TimerRun() {
+	for range t.timer.C {
+		now := time.Now().UnixMilli()
+		t.root.lock.Lock()
 
-// InitTickerInterval : init timer ticker
-// base interval is 100ms, dafualt 100ms, [100ms * interval]
-func InitTickerInterval(interval int64) {
-	if atomic.AddUint32(&initstatus, 1) != 1 {
-		return
-	}
-	if interval > 0 {
-		level = interval
-	}
-
-	go func() {
-		ticker := time.NewTicker(time.Nanosecond * time.Duration(basicNumber*level))
-
-		for {
-			select {
-			case <-ticker.C:
-
-				if count := atomic.AddInt32(&second.count, 1); count%4 == 0 {
-					// run cache second check
-					go checkSecondCache()
+		for i, data := range t.root.data {
+			if data == nil || data.Next() > now {
+				continue
+			}
+			go func(tmp runFunc) {
+				if tmp.Run() {
+					t.last.AddFunc(tmp.Next()-now, tmp)
 				}
+			}(data)
+			t.root.data[i] = nil
+		}
 
-				// append first arrge data
-				first.lock.Lock()
-				mins, maxs := TimeSplit(first.cache, GetNowStamp())
-				first.cache = maxs
-				first.lock.Unlock()
+		t.root.lock.Unlock()
+		t.root.next.CheckFunc()
+	}
+}
 
-				for _, row := range mins {
-					go row.Run()
-				}
+// delete timer function by unique id
+func (t *timerData) DeleteTimer(id int64) {
+	var tmp = t.root
+	for tmp != nil {
+		for i := range tmp.data {
+			if tmp.data[i] != nil && tmp.data[i].Uuid() == id {
+				tmp.data[i] = nil
+				return
 			}
 		}
-	}()
+		tmp = tmp.next
+	}
 }
 
-var minticker bool
-var newpoint chan TimerStruct
-var mintimer int64 = 10
-var nexttime chan int64
+type chainNode struct {
+	last *chainNode
+	next *chainNode
+	lock sync.Mutex
+	data []runFunc
 
-// InitTickerMinTime : init timer ticker
-// base interval is 1ms, dafualt 100ms, [100ms * interval]
-func InitTickerMinTime(interval int64) {
-	if atomic.AddUint32(&initstatus, 1) != 1 {
-		return
+	serial int
+	number int32 // check func number
+	nummax int32 // check func trigger number
+	durmin int64 // (ms) node limit
+	durmax int64 // (ms) node limit
+}
+
+// Insert upside down (last <-)
+func (c *chainNode) AddFunc(sleep int64, data runFunc) {
+	if c == nil || sleep <= 0 {
+		log.Panicf("abnormal timing task, sleep:%d, data:%v", sleep, data)
 	}
-	minticker = true
-	level = 5
-	if interval > 0 {
-		mintimer = interval
-	}
+	if (c.durmax == 0 || c.durmax >= sleep) && sleep >= c.durmin {
+		c.lock.Lock()
+		defer c.lock.Unlock()
 
-	go func() {
-		ticker := time.NewTicker(time.Second)
-
-		for {
-			select {
-			case <-ticker.C:
-				// run cache second check
-				go checkSecondCache()
-
-			case ts := <-nexttime:
-
-				go func(timestamp int64) {
-					time.Sleep(time.Millisecond * time.Duration(timestamp))
-
-					now := GetNowStamp() + mintimer
-					// append first arrge data
-					first.lock.Lock()
-					mins, maxs := TimeSplit(first.cache, now)
-					first.cache = maxs
-					first.lock.Unlock()
-
-					for _, row := range mins {
-						go row.Run()
-					}
-				}(ts)
-
-			case tmp := <-newpoint:
-				// TODO: put to pool, check next run time
-				tmp.Run()
+		for i := range c.data {
+			if c.data[i] == nil {
+				c.data[i] = data
+				return
 			}
 		}
-	}()
-}
-
-func putPools(data TimerStruct) {
-	if minticker {
-		newpoint <- data
+		c.data = append(c.data, data)
+		return
+	} else if c.last != nil && c.last.durmax >= sleep {
+		c.last.AddFunc(sleep, data)
 		return
 	}
-
-	now := GetNowStamp()
-
-	if data.Next() <= (now + first.cutNo*level) {
-		first.lock.Lock()
-		first.cache = append(first.cache, data)
-		first.lock.Unlock()
-	} else if data.Next() > (now + second.cutNo*level) {
-		third.lock.Lock()
-		third.cache = append(third.cache, data)
-		third.lock.Unlock()
-	} else {
-		second.lock.Lock()
-		second.cache = append(second.cache, data)
-		second.lock.Unlock()
-	}
+	log.Panicln("add function abnormal", c.durmax, c.durmin, sleep, c.last)
 }
 
-// When insert new data to sort
-func checkSecondCache() {
-	if count := atomic.AddInt32(&third.count, 1); count%5 == 0 {
-		// run cache third check
-		go checkThirdCache()
+// check function (-> next)
+func (c *chainNode) CheckFunc() {
+	// trigger interval check function with next time
+	if c != nil && atomic.AddInt32(&c.number, 1) >= c.nummax {
+		if c.durmin > 0 && c.last != nil {
+			var now = time.Now().UnixMilli()
+			var sleep = now + c.durmin
+
+			c.lock.Lock()
+			for i, v := range c.data {
+				if v != nil && v.Next() < sleep {
+					go c.last.AddFunc(v.Next()-now, v)
+					c.data[i] = nil
+				}
+			}
+			c.lock.Unlock()
+		}
+		atomic.SwapInt32(&c.number, 0)
+		if c.next != nil {
+			c.next.CheckFunc()
+		}
 	}
-
-	next := GetNowStamp() + first.cutNo*level
-
-	second.lock.Lock()
-	mins, maxs := TimeSplit(second.cache, next)
-
-	first.lock.Lock()
-	first.cache = append(first.cache, mins...)
-	first.lock.Unlock()
-
-	second.cache = maxs
-	second.lock.Unlock()
-}
-
-// When insert new data to sort
-func checkThirdCache() {
-	next := GetNowStamp() + second.cutNo*level
-
-	third.lock.Lock()
-	mins, maxs := TimeSplit(third.cache, next)
-
-	second.lock.Lock()
-	second.cache = append(second.cache, mins...)
-	second.lock.Unlock()
-
-	third.cache = maxs
-	third.lock.Unlock()
 }
